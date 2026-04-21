@@ -1,0 +1,8 @@
+---
+# Handlers del rol dbadmin
+- name: "Reiniciar phpMyAdmin"
+  community.docker.docker_container:
+    name: "{{ contenedores.dbadmin.nombre }}"
+    state: started
+    restart: true
+  listen: "Reiniciar phpMyAdmin"

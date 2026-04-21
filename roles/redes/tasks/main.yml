@@ -1,0 +1,63 @@
+---
+# Rol: redes
+# Descripción: Crea las redes Docker WAN, DMZ, LAN, MGMT y DB del laboratorio
+
+# ─── RED WAN ─────────────────────────────────────────────────────────────────
+- name: "Crear red WAN ({{ redes.wan.nombre }})"
+  community.docker.docker_network:
+    name: "{{ redes.wan.nombre }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ redes.wan.subnet }}"
+        gateway: "{{ redes.wan.gateway }}"
+    state: present
+
+# ─── RED DMZ ─────────────────────────────────────────────────────────────────
+- name: "Crear red DMZ ({{ redes.dmz.nombre }})"
+  community.docker.docker_network:
+    name: "{{ redes.dmz.nombre }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ redes.dmz.subnet }}"
+        gateway: "{{ redes.dmz.gateway }}"
+    state: present
+
+# ─── RED LAN ─────────────────────────────────────────────────────────────────
+- name: "Crear red LAN ({{ redes.lan.nombre }})"
+  community.docker.docker_network:
+    name: "{{ redes.lan.nombre }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ redes.lan.subnet }}"
+        gateway: "{{ redes.lan.gateway }}"
+    state: present
+
+# ─── RED MGMT ────────────────────────────────────────────────────────────────
+- name: "Crear red de gestión ({{ redes.mgmt.nombre }})"
+  community.docker.docker_network:
+    name: "{{ redes.mgmt.nombre }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ redes.mgmt.subnet }}"
+        gateway: "{{ redes.mgmt.gateway }}"
+    state: present
+
+# ─── RED DB ──────────────────────────────────────────────────────────────────
+- name: "Crear red de base de datos ({{ redes.db.nombre }})"
+  community.docker.docker_network:
+    name: "{{ redes.db.nombre }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ redes.db.subnet }}"
+        gateway: "{{ redes.db.gateway }}"
+    state: present
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Listar redes Docker existentes"
+  ansible.builtin.command: docker network ls --filter driver=bridge
+  register: lista_redes
+  changed_when: false
+
+- name: "Mostrar redes del laboratorio"
+  ansible.builtin.debug:
+    msg: "{{ lista_redes.stdout_lines }}"

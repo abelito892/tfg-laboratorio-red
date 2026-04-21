@@ -1,0 +1,15 @@
+$TTL 86400
+@   IN  SOA dns01.laboratorio.local. admin.laboratorio.local. (
+            2026040701  ; Serial
+            3600        ; Refresh
+            1800        ; Retry
+            604800      ; Expire
+            86400 )     ; Minimum TTL
+
+@   IN  NS  dns01.laboratorio.local.
+
+; Resolución inversa IP → nombre
+2    IN  PTR  fw01.laboratorio.local.
+10   IN  PTR  ssh01.laboratorio.local.
+20   IN  PTR  dns01.laboratorio.local.
+30   IN  PTR  dhcp01.laboratorio.local.

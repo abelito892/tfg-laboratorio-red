@@ -1,0 +1,161 @@
+---
+# Playbook maestro del laboratorio de red - TFG ASIR
+
+# ─── VERIFICACIONES PREVIAS ──────────────────────────────────────────────────
+- name: "Verificaciones previas del entorno"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags: always
+
+  pre_tasks:
+    - name: "Verificar que Docker está instalado"
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: docker_version.rc != 0
+
+    - name: "Verificar que Docker está corriendo"
+      ansible.builtin.command: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: docker_info.rc != 0
+
+    - name: "Verificar que la colección community.docker está instalada"
+      ansible.builtin.command: >
+        ansible-galaxy collection list community.docker
+      register: docker_collection
+      changed_when: false
+      failed_when: "'community.docker' not in docker_collection.stdout"
+
+    - name: "Verificar que el usuario está en el grupo docker"
+      ansible.builtin.command: groups
+      register: grupos_usuario
+      changed_when: false
+      failed_when: "'docker' not in grupos_usuario.stdout"
+
+    - name: "Verificar espacio en disco disponible (mínimo 2GB)"
+      ansible.builtin.shell: >
+        df / --output=avail | tail -1
+      register: espacio_disco
+      changed_when: false
+      failed_when: espacio_disco.stdout | int < 2097152
+
+    - name: "Mostrar resumen del entorno"
+      ansible.builtin.debug:
+        msg:
+          - "Docker: {{ docker_version.stdout }}"
+          - "Usuario: {{ ansible_user_id }}"
+          - "Espacio libre: {{ (espacio_disco.stdout | int / 1024 / 1024) | round(1) }} GB"
+          - "Entorno verificado correctamente ✓"
+
+# ─── PLAYS DEL LABORATORIO ───────────────────────────────────────────────────
+- name: "Despliegue de redes Docker del laboratorio"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: redes
+  roles:
+    - redes
+
+- name: "Despliegue del firewall"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: firewall
+  roles:
+    - firewall
+
+- name: "Despliegue de servicios LAN"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - servicios_lan
+    - servicios
+  roles:
+    - role: ssh
+      tags: ssh
+    - role: dns
+      tags: dns
+    - role: dhcp
+      tags: dhcp
+
+- name: "Despliegue de servicios DMZ"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - servicios_dmz
+    - servicios
+  roles:
+    - role: web
+      tags: web
+    - role: proxy
+      tags: proxy
+
+- name: "Despliegue de servicios adicionales LAN"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - servicios_lan
+    - servicios
+  roles:
+    - role: squid
+      tags: squid
+    - role: client
+      tags: client
+
+- name: "Despliegue de la base de datos MySQL"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - bbdd
+    - servicios
+  roles:
+    - role: mysql
+      tags: mysql
+
+- name: "Despliegue de phpMyAdmin"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - bbdd
+    - dbadmin
+    - servicios
+  roles:
+    - role: dbadmin
+      tags: dbadmin
+
+- name: "Despliegue de servicios de gestión"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - gestion
+    - servicios
+  roles:
+    - role: syslog
+      tags: syslog
+
+- name: "Despliegue del panel de control"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - panel
+    - servicios
+  roles:
+    - role: panel
+      tags: panel
+
+- name: "Configuración post-despliegue"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: postdeploy
+  roles:
+    - postdeploy

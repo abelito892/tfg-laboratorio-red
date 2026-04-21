@@ -1,0 +1,23 @@
+# Configuración SSH del laboratorio TFG - ASIR
+# Gestionado por Ansible - no editar manualmente
+
+# Puerto y protocolo
+Port {{ ssh_puerto }}
+Protocol 2
+
+# Autenticación
+PermitRootLogin yes
+PasswordAuthentication yes
+PubkeyAuthentication yes
+
+# Seguridad básica
+MaxAuthTries {{ ssh_max_auth_tries }}
+LoginGraceTime {{ ssh_login_grace_time }}
+
+# Logging
+SyslogFacility AUTH
+LogLevel INFO
+
+# Opciones de sesión
+PrintMotd no
+AcceptEnv LANG LC_*

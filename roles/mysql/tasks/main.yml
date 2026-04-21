@@ -1,0 +1,106 @@
+---
+# Rol: mysql
+# Descripción: Despliega mysql01 como backend de persistencia de logs
+#              en la red db_net, recibe logs de syslog01 vía ommysql
+
+# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
+- name: "Construir imagen Docker de MySQL + rsyslog"
+  community.docker.docker_image:
+    name: "tfg/mysql"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+- name: "Desplegar contenedor mysql01"
+  community.docker.docker_container:
+    name: "{{ contenedores.mysql.nombre }}"
+    image: "tfg/mysql:latest"
+    state: started
+    restart_policy: unless-stopped
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+      MYSQL_DATABASE: "{{ mysql_database }}"
+      MYSQL_USER: "{{ mysql_rsyslog_user }}"
+      MYSQL_PASSWORD: "{{ mysql_rsyslog_password }}"
+    networks:
+      - name: "{{ redes.db.nombre }}"
+        ipv4_address: "{{ contenedores.mysql.ip }}"
+
+- name: "Conectar mysql01 a la red de gestión con IP fija"
+  ansible.builtin.shell: |
+    docker network disconnect mgmt_net {{ contenedores.mysql.nombre }} 2>/dev/null || true
+    docker network connect --ip {{ contenedores.mysql.ip_mgmt }} mgmt_net {{ contenedores.mysql.nombre }}
+  register: ip_mgmt_result
+  changed_when: true
+  failed_when:
+    - ip_mgmt_result.rc != 0
+    - "'already exists' not in ip_mgmt_result.stderr"
+
+# ─── COPIAR SCHEMA INICIAL ───────────────────────────────────────────────────
+- name: "Copiar init.sql al contenedor"
+  ansible.builtin.command: >
+    docker cp {{ role_path }}/files/init.sql
+    {{ contenedores.mysql.nombre }}:/docker-entrypoint-initdb.d/init.sql
+  changed_when: true
+
+# ─── ESPERAR A QUE MYSQL ESTÉ LISTO ──────────────────────────────────────────
+- name: "Esperar a que MySQL acepte conexiones (máximo 60s)"
+  ansible.builtin.shell: |
+    for i in $(seq 1 30); do
+      if docker exec {{ contenedores.mysql.nombre }} bash -c 'mysqladmin ping -u root -p"$MYSQL_ROOT_PASSWORD" --silent' 2>/dev/null; then
+        echo "MySQL listo tras ${i} intentos"
+        exit 0
+      fi
+      sleep 2
+    done
+    echo "Timeout esperando MySQL"
+    exit 1
+  register: mysql_ready
+  changed_when: false
+
+# ─── APLICAR SCHEMA MANUALMENTE (por si init.sql no se ejecutó) ─────────────
+# Esto es idempotente: CREATE TABLE IF NOT EXISTS no falla si ya existe
+- name: "Aplicar schema de rsyslog en la base de datos"
+  ansible.builtin.shell: |
+    docker exec -i {{ contenedores.mysql.nombre }} bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD"' < {{ role_path }}/files/init.sql
+  register: schema_result
+  changed_when: schema_result.rc == 0
+  failed_when: false
+
+# ─── CONFIGURACIÓN DE LOGS DEL PROPIO MYSQL ──────────────────────────────────
+# mysql01 también envía sus propios logs locales a syslog01
+- name: "Configurar envío de logs MySQL a syslog01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.mysql.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
+  register: logs_config
+  changed_when: "logs_config.rc == 0"
+  notify: "Reiniciar rsyslog MySQL"
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Verificar que la base de datos Syslog existe"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.mysql.nombre }} bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES LIKE \"Syslog\";"'
+  register: db_check
+  changed_when: false
+  failed_when: "'Syslog' not in db_check.stdout"
+
+- name: "Verificar que la tabla SystemEvents existe"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.mysql.nombre }} bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" Syslog -e "SHOW TABLES LIKE \"SystemEvents\";"'
+  register: table_check
+  changed_when: false
+  failed_when: "'SystemEvents' not in table_check.stdout"
+
+- name: "Verificar que el contenedor mysql01 está activo"
+  ansible.builtin.command: >
+    docker ps --filter name={{ contenedores.mysql.nombre }}
+  register: estado_mysql
+  changed_when: false
+
+- name: "Mostrar estado del contenedor mysql01"
+  ansible.builtin.debug:
+    msg: "{{ estado_mysql.stdout_lines }}"

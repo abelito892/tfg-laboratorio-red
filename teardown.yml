@@ -1,0 +1,121 @@
+---
+# Playbook de destrucción del laboratorio - TFG ASIR
+# USO: ansible-playbook teardown.yml
+# ADVERTENCIA: Elimina todos los contenedores y redes del laboratorio
+
+- name: "Destruir laboratorio de red"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+
+    # ─── ELIMINAR CONTENEDORES ────────────────────────────────────────────────
+    - name: "Eliminar contenedor panel01"
+      community.docker.docker_container:
+        name: panel01
+        state: absent
+
+    - name: "Eliminar contenedor client01"
+      community.docker.docker_container:
+        name: client01
+        state: absent
+
+    - name: "Eliminar contenedor squid01"
+      community.docker.docker_container:
+        name: squid01
+        state: absent
+
+    - name: "Eliminar contenedor proxy01"
+      community.docker.docker_container:
+        name: proxy01
+        state: absent
+
+    - name: "Eliminar contenedor web01"
+      community.docker.docker_container:
+        name: web01
+        state: absent
+
+    - name: "Eliminar contenedor dhcp01"
+      community.docker.docker_container:
+        name: dhcp01
+        state: absent
+
+    - name: "Eliminar contenedor dns01"
+      community.docker.docker_container:
+        name: dns01
+        state: absent
+
+    - name: "Eliminar contenedor ssh01"
+      community.docker.docker_container:
+        name: ssh01
+        state: absent
+
+    - name: "Eliminar contenedor dbadmin01"
+      community.docker.docker_container:
+        name: dbadmin01
+        state: absent
+
+    - name: "Eliminar contenedor syslog01"
+      community.docker.docker_container:
+        name: syslog01
+        state: absent
+
+    - name: "Eliminar contenedor mysql01"
+      community.docker.docker_container:
+        name: mysql01
+        state: absent
+
+    - name: "Eliminar contenedor fw01"
+      community.docker.docker_container:
+        name: fw01
+        state: absent
+
+    # ─── ELIMINAR REDES ───────────────────────────────────────────────────────
+    - name: "Eliminar red lan_net"
+      community.docker.docker_network:
+        name: lan_net
+        state: absent
+
+    - name: "Eliminar red dmz_net"
+      community.docker.docker_network:
+        name: dmz_net
+        state: absent
+
+    - name: "Eliminar red wan_net"
+      community.docker.docker_network:
+        name: wan_net
+        state: absent
+
+    - name: "Eliminar red mgmt_net"
+      community.docker.docker_network:
+        name: mgmt_net
+        state: absent
+
+    - name: "Eliminar red db_net"
+      community.docker.docker_network:
+        name: db_net
+        state: absent
+
+    # ─── VERIFICACIÓN ─────────────────────────────────────────────────────────
+    - name: "Verificar que no quedan contenedores del laboratorio"
+      ansible.builtin.command: >
+        docker ps -a
+        --filter name=fw01
+        --filter name=ssh01
+        --filter name=dns01
+        --filter name=dhcp01
+        --filter name=web01
+        --filter name=proxy01
+        --filter name=squid01
+        --filter name=client01
+        --filter name=syslog01
+        --filter name=mysql01
+        --filter name=dbadmin01
+        --filter name=panel01
+      register: contenedores_restantes
+      changed_when: false
+
+    - name: "Mostrar estado final"
+      ansible.builtin.debug:
+        msg: "{{ contenedores_restantes.stdout_lines }}"

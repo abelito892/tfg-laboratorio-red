@@ -1,0 +1,49 @@
+---
+# Rol: postdeploy
+# Descripción: Elimina las reglas de aislamiento que Docker añade automáticamente
+#              en la tabla raw para permitir tráfico entre lan_net y dmz_net
+
+# ─── OBTENER IDs DE REDES DOCKER ─────────────────────────────────────────────
+- name: "Obtener ID de lan_net"
+  ansible.builtin.shell: docker network inspect lan_net --format '{% raw %}{{.Id}}{% endraw %}' | cut -c1-12
+  register: lan_id
+  changed_when: false
+
+- name: "Obtener ID de dmz_net"
+  ansible.builtin.shell: docker network inspect dmz_net --format '{% raw %}{{.Id}}{% endraw %}' | cut -c1-12
+  register: dmz_id
+  changed_when: false
+
+# ─── ELIMINAR REGLAS RAW QUE BLOQUEAN TRÁFICO ENTRE REDES ───────────────────
+- name: "Eliminar reglas raw que bloquean tráfico hacia DMZ desde LAN"
+  ansible.builtin.shell: |
+    for handle in $(nft -a list chain ip raw PREROUTING 2>/dev/null | \
+    grep "br-{{ dmz_id.stdout }}.*drop" | awk '{print $NF}'); do
+      nft delete rule ip raw PREROUTING handle $handle
+    done
+  become: true
+  changed_when: true
+  ignore_errors: true
+
+- name: "Eliminar reglas raw que bloquean tráfico de retorno hacia LAN"
+  ansible.builtin.shell: |
+    for handle in $(nft -a list chain ip raw PREROUTING 2>/dev/null | \
+    grep "br-{{ lan_id.stdout }}.*drop" | awk '{print $NF}'); do
+      nft delete rule ip raw PREROUTING handle $handle
+    done
+  become: true
+  changed_when: true
+  ignore_errors: true
+
+# ─── VERIFICACIÓN ─────────────────────────────────────────────────────────────
+- name: "Verificar reglas restantes entre LAN y DMZ"
+  ansible.builtin.shell: >
+    nft list chain ip raw PREROUTING 2>/dev/null |
+    grep -E "br-{{ lan_id.stdout }}|br-{{ dmz_id.stdout }}" | wc -l
+  register: reglas_restantes
+  changed_when: false
+  become: true
+
+- name: "Mostrar reglas restantes"
+  ansible.builtin.debug:
+    msg: "Reglas de aislamiento restantes: {{ reglas_restantes.stdout }}"

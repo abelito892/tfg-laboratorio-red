@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio de Red — TFG ASIR</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: #eaeaea;
+            margin: 0;
+            padding: 40px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #16213e;
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid #0f3460;
+        }
+        h1 { color: #e94560; }
+        h2 { color: #0f3460; background-color: #e94560; padding: 8px 16px; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background-color: #0f3460; color: #eaeaea; padding: 10px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #0f3460; }
+        .badge {
+            background-color: #e94560;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Laboratorio de Red — TFG ASIR</h1>
+        <p>Servidor web desplegado en la zona <strong>DMZ</strong> del laboratorio.</p>
+        <p>Acceso gestionado a través del proxy inverso <strong>proxy01</strong>.</p>
+
+        <h2>Infraestructura del laboratorio</h2>
+        <table>
+            <tr>
+                <th>Contenedor</th>
+                <th>IP</th>
+                <th>Servicio</th>
+                <th>Zona</th>
+            </tr>
+            <tr><td>fw01</td><td>172.20.0.2 / 192.168.100.2</td><td>Firewall nftables</td><td><span class="badge">WAN/LAN</span></td></tr>
+            <tr><td>proxy01</td><td>172.21.0.10</td><td>Proxy inverso Nginx</td><td><span class="badge">DMZ</span></td></tr>
+            <tr><td>web01</td><td>172.21.0.20</td><td>Servidor web Nginx</td><td><span class="badge">DMZ</span></td></tr>
+            <tr><td>ssh01</td><td>192.168.100.10</td><td>OpenSSH</td><td><span class="badge">LAN</span></td></tr>
+            <tr><td>dns01</td><td>192.168.100.20</td><td>BIND9</td><td><span class="badge">LAN</span></td></tr>
+            <tr><td>dhcp01</td><td>192.168.100.30</td><td>ISC DHCP</td><td><span class="badge">LAN</span></td></tr>
+            <tr><td>squid01</td><td>192.168.100.40</td><td>Proxy Squid</td><td><span class="badge">LAN</span></td></tr>
+        </table>
+
+        <p><em>TFG — Administración de Sistemas Informáticos en Red · 2026</em></p>
+    </div>
+</body>
+</html>

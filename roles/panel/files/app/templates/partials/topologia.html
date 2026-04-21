@@ -1,0 +1,122 @@
+<div class="topologia-container">
+<svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg" class="topologia-svg">
+
+  <!-- Fondos de zonas -->
+  <rect x="10" y="10" width="160" height="500" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+  <rect x="190" y="10" width="200" height="500" rx="10" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+  <rect x="410" y="10" width="240" height="500" rx="10" fill="#d1fae5" stroke="#10b981" stroke-width="2"/>
+  <rect x="670" y="10" width="220" height="500" rx="10" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
+
+  <!-- Etiquetas de zonas -->
+  <text x="90" y="35" text-anchor="middle" font-size="13" font-weight="bold" fill="#92400e">WAN</text>
+  <text x="90" y="50" text-anchor="middle" font-size="11" fill="#92400e">172.20.0.0/24</text>
+
+  <text x="290" y="35" text-anchor="middle" font-size="13" font-weight="bold" fill="#991b1b">DMZ</text>
+  <text x="290" y="50" text-anchor="middle" font-size="11" fill="#991b1b">172.21.0.0/24</text>
+
+  <text x="530" y="35" text-anchor="middle" font-size="13" font-weight="bold" fill="#065f46">LAN</text>
+  <text x="530" y="50" text-anchor="middle" font-size="11" fill="#065f46">192.168.100.0/24</text>
+
+  <text x="780" y="35" text-anchor="middle" font-size="13" font-weight="bold" fill="#3730a3">MGMT</text>
+  <text x="780" y="50" text-anchor="middle" font-size="11" fill="#3730a3">172.22.0.0/24</text>
+
+  <!-- fw01 en el centro -->
+  <rect x="30" y="220" width="120" height="60" rx="8" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+  <text x="90" y="245" text-anchor="middle" font-size="12" font-weight="bold" fill="white">🔥 fw01</text>
+  <text x="90" y="260" text-anchor="middle" font-size="10" fill="white">Firewall nftables</text>
+  <text x="90" y="273" text-anchor="middle" font-size="9" fill="white">172.20.0.2</text>
+
+  <!-- DMZ: proxy01 y web01 -->
+  <rect x="210" y="120" width="160" height="55" rx="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="290" y="143" text-anchor="middle" font-size="12" font-weight="bold" fill="white">🔀 proxy01</text>
+  <text x="290" y="158" text-anchor="middle" font-size="10" fill="white">Nginx Rev Proxy</text>
+  <text x="290" y="170" text-anchor="middle" font-size="9" fill="white">172.21.0.10</text>
+
+  <rect x="210" y="220" width="160" height="55" rx="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="290" y="243" text-anchor="middle" font-size="12" font-weight="bold" fill="white">🌐 web01</text>
+  <text x="290" y="258" text-anchor="middle" font-size="10" fill="white">Nginx + SSL</text>
+  <text x="290" y="270" text-anchor="middle" font-size="9" fill="white">172.21.0.20</text>
+
+  <!-- LAN: ssh01, dns01, dhcp01, squid01, client01 -->
+  <rect x="430" y="70" width="160" height="50" rx="8" fill="#10b981" stroke="#059669" stroke-width="2"/>
+  <text x="510" y="91" text-anchor="middle" font-size="12" font-weight="bold" fill="white">🔐 ssh01</text>
+  <text x="510" y="106" text-anchor="middle" font-size="10" fill="white">192.168.100.10</text>
+
+  <rect x="430" y="140" width="160" height="50" rx="8" fill="#10b981" stroke="#059669" stroke-width="2"/>
+  <text x="510" y="161" text-anchor="middle" font-size="12" font-weight="bold" fill="white">🔍 dns01</text>
+  <text x="510" y="176" text-anchor="middle" font-size="10" fill="white">192.168.100.20</text>
+
+  <rect x="430" y="210" width="160" height="50" rx="8" fill="#10b981" stroke="#059669" stroke-width="2"/>
+  <text x="510" y="231" text-anchor="middle" font-size="12" font-weight="bold" fill="white">📡 dhcp01</text>
+  <text x="510" y="246" text-anchor="middle" font-size="10" fill="white">192.168.100.30</text>
+
+  <rect x="430" y="280" width="160" height="50" rx="8" fill="#10b981" stroke="#059669" stroke-width="2"/>
+  <text x="510" y="301" text-anchor="middle" font-size="12" font-weight="bold" fill="white">🦑 squid01</text>
+  <text x="510" y="316" text-anchor="middle" font-size="10" fill="white">192.168.100.40</text>
+
+  <rect x="430" y="350" width="160" height="50" rx="8" fill="#6ee7b7" stroke="#059669" stroke-width="2"/>
+  <text x="510" y="371" text-anchor="middle" font-size="12" font-weight="bold" fill="#065f46">💻 client01</text>
+  <text x="510" y="386" text-anchor="middle" font-size="10" fill="#065f46">DHCP dinámico</text>
+
+  <!-- MGMT: syslog01, mysql01 -->
+  <rect x="690" y="100" width="180" height="55" rx="8" fill="#6366f1" stroke="#4f46e5" stroke-width="2"/>
+  <text x="780" y="123" text-anchor="middle" font-size="12" font-weight="bold" fill="white">📨 syslog01</text>
+  <text x="780" y="138" text-anchor="middle" font-size="10" fill="white">rsyslog central</text>
+  <text x="780" y="150" text-anchor="middle" font-size="9" fill="white">172.22.0.10</text>
+
+  <rect x="690" y="190" width="180" height="55" rx="8" fill="#6366f1" stroke="#4f46e5" stroke-width="2"/>
+  <text x="780" y="213" text-anchor="middle" font-size="12" font-weight="bold" fill="white">🗄️ mysql01</text>
+  <text x="780" y="228" text-anchor="middle" font-size="10" fill="white">MySQL 8.0</text>
+  <text x="780" y="240" text-anchor="middle" font-size="9" fill="white">172.23.0.10</text>
+
+  <rect x="690" y="280" width="180" height="55" rx="8" fill="#818cf8" stroke="#4f46e5" stroke-width="2"/>
+  <text x="780" y="303" text-anchor="middle" font-size="12" font-weight="bold" fill="white">🖥️ panel01</text>
+  <text x="780" y="318" text-anchor="middle" font-size="10" fill="white">Flask Dashboard</text>
+  <text x="780" y="330" text-anchor="middle" font-size="9" fill="white">:5000</text>
+
+  <!-- Flechas fw01 → DMZ -->
+  <line x1="150" y1="247" x2="210" y2="147" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <line x1="150" y1="247" x2="210" y2="247" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+
+  <!-- Flechas fw01 → LAN -->
+  <line x1="150" y1="247" x2="430" y2="95" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <line x1="150" y1="247" x2="430" y2="165" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <line x1="150" y1="247" x2="430" y2="235" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <line x1="150" y1="247" x2="430" y2="305" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+
+  <!-- Flecha proxy01 → web01 -->
+  <line x1="290" y1="175" x2="290" y2="220" stroke="#ef4444" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrow-red)"/>
+
+  <!-- Flechas logs → syslog01 -->
+  <line x1="590" y1="95" x2="690" y2="127" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-indigo)"/>
+  <line x1="590" y1="165" x2="690" y2="127" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-indigo)"/>
+  <line x1="590" y1="235" x2="690" y2="127" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-indigo)"/>
+  <line x1="590" y1="305" x2="690" y2="127" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-indigo)"/>
+  <line x1="370" y1="147" x2="690" y2="127" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-indigo)"/>
+  <line x1="370" y1="247" x2="690" y2="127" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-indigo)"/>
+
+  <!-- Flecha syslog01 → mysql01 -->
+  <line x1="780" y1="155" x2="780" y2="190" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)"/>
+
+  <!-- Definición de flechas -->
+  <defs>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#ef4444"/>
+    </marker>
+    <marker id="arrow-indigo" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#6366f1"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="topologia-leyenda">
+    <span class="leyenda-item"><span class="leyenda-color" style="background:#f59e0b"></span>WAN / Firewall</span>
+    <span class="leyenda-item"><span class="leyenda-color" style="background:#ef4444"></span>DMZ</span>
+    <span class="leyenda-item"><span class="leyenda-color" style="background:#10b981"></span>LAN</span>
+    <span class="leyenda-item"><span class="leyenda-color" style="background:#6366f1"></span>MGMT / DB</span>
+    <span class="leyenda-item"><span class="leyenda-color" style="background:transparent;border:2px dashed #6366f1"></span>Tráfico de logs</span>
+</div>
+</div>

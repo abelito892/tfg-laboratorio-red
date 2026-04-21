@@ -1,0 +1,12 @@
+---
+- name: "Recargar Proxy"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.proxy.nombre }} nginx -s reload
+  changed_when: true
+  listen: "Recargar Proxy"
+
+- name: "Reiniciar rsyslog en proxy01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.proxy.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
+  changed_when: true
+  listen: "Reiniciar rsyslog Proxy"

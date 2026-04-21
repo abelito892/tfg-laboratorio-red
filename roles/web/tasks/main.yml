@@ -1,0 +1,95 @@
+---
+# Rol: web
+# Descripción: Despliega el contenedor web01 con Nginx + SSL en la DMZ
+
+# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
+- name: "Construir imagen Docker del servidor web"
+  community.docker.docker_image:
+    name: "tfg/web"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+- name: "Desplegar contenedor web01"
+  community.docker.docker_container:
+    name: "{{ contenedores.web.nombre }}"
+    image: "tfg/web:latest"
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ redes.dmz.nombre }}"
+        ipv4_address: "{{ contenedores.web.ip }}"
+
+- name: "Conectar web01 a la red de gestión con IP fija"
+  ansible.builtin.shell: |
+    docker network disconnect mgmt_net {{ contenedores.web.nombre }} 2>/dev/null || true
+    docker network connect --ip {{ contenedores.web.ip_mgmt }} mgmt_net {{ contenedores.web.nombre }}
+  register: ip_mgmt_result
+  changed_when: true
+  failed_when:
+    - ip_mgmt_result.rc != 0
+    - "'already exists' not in ip_mgmt_result.stderr"
+
+# ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
+- name: "Generar nginx.conf desde plantilla"
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "/tmp/nginx.conf_{{ contenedores.web.nombre }}"
+    mode: '0644'
+  notify: "Recargar Web"
+
+- name: "Copiar nginx.conf al contenedor"
+  ansible.builtin.command: >
+    docker cp /tmp/nginx.conf_{{ contenedores.web.nombre }}
+    {{ contenedores.web.nombre }}:/etc/nginx/sites-available/laboratorio
+  changed_when: true
+  notify: "Recargar Web"
+
+- name: "Activar sitio en Nginx"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.web.nombre }}
+    ln -sf /etc/nginx/sites-available/laboratorio
+    /etc/nginx/sites-enabled/laboratorio
+  changed_when: true
+
+- name: "Desactivar sitio por defecto de Nginx"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.web.nombre }}
+    rm -f /etc/nginx/sites-enabled/default
+  changed_when: true
+
+- name: "Copiar index.html al contenedor"
+  ansible.builtin.command: >
+    docker cp {{ role_path }}/files/index.html
+    {{ contenedores.web.nombre }}:/var/www/laboratorio/index.html
+  changed_when: true
+  notify: "Recargar Web"
+
+- name: "Verificar configuración de Nginx"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.web.nombre }} nginx -t
+  register: check_nginx
+  changed_when: false
+
+# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
+- name: "Configurar envío de logs Web a syslog01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.web.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
+  register: logs_config
+  changed_when: "logs_config.rc == 0"
+  notify: "Reiniciar rsyslog Web"
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Verificar que el contenedor web01 está activo"
+  ansible.builtin.command: >
+    docker ps --filter name={{ contenedores.web.nombre }}
+  register: estado_web
+  changed_when: false
+
+- name: "Mostrar estado del contenedor web01"
+  ansible.builtin.debug:
+    msg: "{{ estado_web.stdout_lines }}"

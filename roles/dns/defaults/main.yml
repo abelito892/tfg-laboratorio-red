@@ -1,0 +1,4 @@
+---
+# Valores por defecto del rol DNS
+# dns_dominio, dns_forwarder_primario y dns_forwarder_secundario
+# movidos a group_vars/all/main.yml por ser variables globales

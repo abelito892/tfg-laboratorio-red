@@ -1,0 +1,44 @@
+---
+# Rol: dbadmin
+# Descripción: Despliega phpMyAdmin como interfaz web para mysql01
+# Accesible desde el host en http://localhost:8080
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+# Usamos la imagen oficial de phpMyAdmin - no necesita Dockerfile propio
+- name: "Desplegar contenedor dbadmin01 (phpMyAdmin)"
+  community.docker.docker_container:
+    name: "{{ contenedores.dbadmin.nombre }}"
+    image: "phpmyadmin/phpmyadmin:latest"
+    state: started
+    restart_policy: unless-stopped
+    pull: true
+    env:
+      PMA_HOST: "{{ contenedores.mysql.ip }}"
+      PMA_PORT: "3306"
+      PMA_USER: "root"
+      PMA_PASSWORD: "{{ mysql_root_password }}"
+      UPLOAD_LIMIT: "64M"
+    ports:
+      - "{{ dbadmin_puerto_host }}:{{ dbadmin_puerto_contenedor }}"
+    networks:
+      - name: "{{ redes.db.nombre }}"
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Esperar a que phpMyAdmin esté listo (máximo 30s)"
+  ansible.builtin.uri:
+    url: "http://localhost:{{ dbadmin_puerto_host }}"
+    status_code: 200
+  register: pma_check
+  retries: 10
+  delay: 3
+  until: pma_check.status == 200
+
+- name: "Verificar que el contenedor dbadmin01 está activo"
+  ansible.builtin.command: >
+    docker ps --filter name={{ contenedores.dbadmin.nombre }}
+  register: estado_dbadmin
+  changed_when: false
+
+- name: "Mostrar estado del contenedor dbadmin01"
+  ansible.builtin.debug:
+    msg: "{{ estado_dbadmin.stdout_lines }}"

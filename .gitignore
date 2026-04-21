@@ -1,0 +1,14 @@
+# Ficheros temporales de Ansible
+*.retry
+/tmp/
+
+# Ficheros generados por el sistema
+.DS_Store
+*.swp
+*.swo
+
+# Claves SSH privadas (seguridad)
+*.key
+*.pem
+id_rsa
+id_ed25519

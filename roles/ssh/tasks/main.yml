@@ -1,0 +1,68 @@
+---
+# Rol: ssh
+# Descripción: Despliega el contenedor ssh01 en la red LAN
+
+# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
+- name: "Construir imagen Docker del servidor SSH"
+  community.docker.docker_image:
+    name: "tfg/ssh"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+- name: "Desplegar contenedor ssh01"
+  community.docker.docker_container:
+    name: "{{ contenedores.ssh.nombre }}"
+    image: "tfg/ssh:latest"
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ redes.lan.nombre }}"
+        ipv4_address: "{{ contenedores.ssh.ip }}"
+
+- name: "Conectar ssh01 a la red de gestión con IP fija"
+  ansible.builtin.shell: |
+    docker network disconnect mgmt_net {{ contenedores.ssh.nombre }} 2>/dev/null || true
+    docker network connect --ip {{ contenedores.ssh.ip_mgmt }} mgmt_net {{ contenedores.ssh.nombre }}
+  register: ip_mgmt_result
+  changed_when: true
+  failed_when:
+    - ip_mgmt_result.rc != 0
+    - "'already exists' not in ip_mgmt_result.stderr"
+
+# ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
+- name: "Generar sshd_config desde plantilla"
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: "/tmp/sshd_config_{{ contenedores.ssh.nombre }}"
+    mode: '0600'
+  notify: "Recargar SSH"
+
+- name: "Copiar sshd_config al contenedor"
+  ansible.builtin.command: >
+    docker cp /tmp/sshd_config_{{ contenedores.ssh.nombre }}
+    {{ contenedores.ssh.nombre }}:/etc/ssh/sshd_config
+  changed_when: true
+  notify: "Recargar SSH"
+
+# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
+- name: "Configurar envío de logs SSH a syslog01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.ssh.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
+  register: logs_config
+  changed_when: "logs_config.rc == 0"
+  notify: "Reiniciar rsyslog SSH"
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Verificar que el contenedor ssh01 está activo"
+  ansible.builtin.command: docker ps --filter name={{ contenedores.ssh.nombre }}
+  register: estado_ssh
+  changed_when: false
+
+- name: "Mostrar estado del contenedor ssh01"
+  ansible.builtin.debug:
+    msg: "{{ estado_ssh.stdout_lines }}"

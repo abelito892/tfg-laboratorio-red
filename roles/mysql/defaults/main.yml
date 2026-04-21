@@ -1,0 +1,7 @@
+---
+# Valores por defecto del rol MySQL
+# Los valores reales vienen de group_vars/all/main.yml
+
+mysql_puerto: 3306
+mysql_max_connections: 100
+mysql_wait_timeout: 600

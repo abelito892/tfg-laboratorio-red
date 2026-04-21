@@ -1,0 +1,5 @@
+---
+# Valores por defecto del rol web
+web_ssl_dias: 365
+web_ssl_pais: "ES"
+web_ssl_ciudad: "Madrid"

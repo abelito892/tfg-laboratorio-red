@@ -1,0 +1,32 @@
+# Configuración Squid proxy de salida - TFG ASIR
+# Gestionado por Ansible - no editar manualmente
+
+# ─── PUERTOS ─────────────────────────────────────────────
+http_port {{ squid_puerto }}
+
+# ─── ACL — Listas de control de acceso ───────────────────
+acl localnet src {{ redes.lan.subnet }}
+acl SSL_ports port 443
+acl Safe_ports port 80
+acl Safe_ports port 443
+acl Safe_ports port 21
+acl Safe_ports port 22
+acl CONNECT method CONNECT
+
+# ─── REGLAS DE ACCESO ────────────────────────────────────
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access allow localnet
+http_access deny all
+
+# ─── CACHÉ ───────────────────────────────────────────────
+cache deny all
+
+# ─── LOGGING ─────────────────────────────────────────────
+access_log stdio:/var/log/squid/access.log combined
+cache_log  stdio:/var/log/squid/cache.log
+
+# ─── OPCIONES GENERALES ──────────────────────────────────
+visible_hostname {{ contenedores.squid.nombre }}.{{ dns_dominio }}
+forwarded_for off
+refresh_pattern . 0 20% 4320

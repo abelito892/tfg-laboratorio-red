@@ -1,0 +1,5 @@
+---
+# Valores por defecto del rol DHCP
+dhcp_rango_inicio: "192.168.100.100"
+dhcp_rango_fin: "192.168.100.200"
+dhcp_lease_time: 86400

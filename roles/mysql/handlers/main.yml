@@ -1,0 +1,15 @@
+---
+# Handlers del rol MySQL
+
+- name: "Reiniciar MySQL"
+  community.docker.docker_container:
+    name: "{{ contenedores.mysql.nombre }}"
+    state: started
+    restart: true
+  listen: "Reiniciar MySQL"
+
+- name: "Reiniciar rsyslog en mysql01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.mysql.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
+  changed_when: true
+  listen: "Reiniciar rsyslog MySQL"

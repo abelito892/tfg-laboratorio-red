@@ -1,0 +1,64 @@
+---
+# Rol: firewall
+# Descripción: Despliega el contenedor fw01 como router/firewall
+
+- name: "Construir imagen Docker del firewall"
+  community.docker.docker_image:
+    name: "tfg/firewall"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+- name: "Desplegar contenedor fw01"
+  community.docker.docker_container:
+    name: "{{ contenedores.firewall.nombre }}"
+    image: "tfg/firewall:latest"
+    state: started
+    restart_policy: unless-stopped
+    capabilities:
+      - NET_ADMIN
+      - SYS_MODULE
+    volumes:
+      - /lib/modules:/lib/modules:ro
+    networks:
+      - name: "{{ redes.wan.nombre }}"
+        ipv4_address: "{{ contenedores.firewall.ip_wan }}"
+      - name: "{{ redes.lan.nombre }}"
+        ipv4_address: "{{ contenedores.firewall.ip_lan }}"
+      - name: "{{ redes.dmz.nombre }}"
+        ipv4_address: "{{ contenedores.firewall.ip_dmz }}"
+
+- name: "Verificar estado del contenedor fw01"
+  ansible.builtin.command: docker ps --filter name=fw01
+  register: estado_fw
+  changed_when: false
+
+- name: "Mostrar estado del firewall"
+  ansible.builtin.debug:
+    msg: "{{ estado_fw.stdout_lines }}"
+
+- name: "Copiar reglas nftables al contenedor"
+  ansible.builtin.command: >
+    docker cp {{ role_path }}/files/nftables.conf
+    {{ contenedores.firewall.nombre }}:/etc/nftables/nftables.conf
+  changed_when: true
+
+- name: "Aplicar reglas nftables"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.firewall.nombre }}
+    nft -f /etc/nftables/nftables.conf
+  register: resultado_nft
+  changed_when: resultado_nft.rc == 0
+
+- name: "Verificar ruleset activo"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.firewall.nombre }} nft list ruleset
+  register: ruleset
+  changed_when: false
+
+- name: "Mostrar ruleset"
+  ansible.builtin.debug:
+    msg: "{{ ruleset.stdout_lines }}"

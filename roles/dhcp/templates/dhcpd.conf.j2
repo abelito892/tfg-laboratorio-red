@@ -1,0 +1,24 @@
+# Configuración ISC DHCP Server del laboratorio TFG - ASIR
+# Gestionado por Ansible - no editar manualmente
+
+# Parámetros globales
+default-lease-time {{ dhcp_lease_time }};
+max-lease-time {{ dhcp_lease_time }};
+authoritative;
+
+# Logging
+log-facility local7;
+
+# Subred LAN del laboratorio
+subnet {{ redes.lan.gateway | regex_replace('\.1$', '.0') }} netmask 255.255.255.0 {
+
+    # Rango de asignación dinámica
+    range {{ dhcp_rango_inicio }} {{ dhcp_rango_fin }};
+
+    # Opciones de red
+    option routers {{ contenedores.firewall.ip_lan }};
+    option domain-name-servers {{ contenedores.dns.ip }};
+    option domain-name "{{ dns_dominio }}";
+    option subnet-mask 255.255.255.0;
+    option broadcast-address {{ redes.lan.gateway | regex_replace('\.1$', '.255') }};
+}

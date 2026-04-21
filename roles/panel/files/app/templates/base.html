@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control del Laboratorio</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="header-logo">
+                <span class="header-icon">🔬</span>
+                <div>
+                    <h1>Panel de Control del Laboratorio</h1>
+                    <p>TFG ASIR — Laboratorio de Red Virtualizado con Docker y Ansible</p>
+                </div>
+            </div>
+            <div class="header-info">
+                <span id="reloj"></span>
+            </div>
+        </div>
+    </header>
+
+    <nav class="navbar">
+        <a href="#estado" class="nav-link">📊 Estado</a>
+        <a href="#conectividad" class="nav-link">🔌 Conectividad</a>
+        <a href="#logs" class="nav-link">📋 Logs</a>
+        <a href="#dhcp" class="nav-link">📡 DHCP</a>
+        <a href="#mysql" class="nav-link">🗄️ MySQL</a>
+        <a href="#topologia" class="nav-link">🗺️ Topología</a>
+        <a href="#ansible" class="nav-link">⚙️ Ansible</a>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>TFG ASIR — Laboratorio de Red Virtualizado | Docker + Ansible + Ubuntu 24.04</p>
+    </footer>
+
+    <script>
+        // Reloj en tiempo real
+        function actualizarReloj() {
+            const ahora = new Date();
+            document.getElementById('reloj').textContent =
+                ahora.toLocaleTimeString('es-ES');
+        }
+        setInterval(actualizarReloj, 1000);
+        actualizarReloj();
+
+        // Indicador de carga HTMX
+        document.addEventListener('htmx:beforeRequest', function(e) {
+            const btn = e.target;
+            if (btn.tagName === 'BUTTON') {
+                btn.classList.add('loading');
+                btn.disabled = true;
+            }
+        });
+        document.addEventListener('htmx:afterRequest', function(e) {
+            const btn = e.target;
+            if (btn.tagName === 'BUTTON') {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

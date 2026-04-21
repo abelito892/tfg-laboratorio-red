@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- ═══ ESTADO DE CONTENEDORES ═══════════════════════════════════════════ -->
+<section class="card" id="estado">
+    <div class="card-header">
+        <h2>📊 Estado del Laboratorio</h2>
+        <button class="btn btn-secondary"
+                hx-get="/api/status"
+                hx-target="#tabla-estado"
+                hx-swap="innerHTML">
+            🔄 Actualizar
+        </button>
+    </div>
+    <div id="tabla-estado"
+         hx-get="/api/status"
+         hx-trigger="load, every 30s"
+         hx-swap="innerHTML">
+        <div class="loading-placeholder">Cargando estado...</div>
+    </div>
+</section>
+
+<!-- ═══ PRUEBAS DE CONECTIVIDAD ══════════════════════════════════════════ -->
+<section class="card" id="conectividad">
+    <div class="card-header">
+        <h2>🔌 Pruebas de Conectividad</h2>
+    </div>
+    <div class="test-grid">
+        <div class="test-item">
+            <div class="test-info">
+                <strong>SSH</strong>
+                <span>Conectividad a ssh01 (192.168.100.10:22)</span>
+            </div>
+            <button class="btn btn-primary"
+                    hx-post="/api/test/ssh"
+                    hx-target="#resultado-ssh"
+                    hx-swap="innerHTML">
+                ▶ Probar
+            </button>
+            <div id="resultado-ssh"></div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-info">
+                <strong>DNS</strong>
+                <span>Resolución web01.laboratorio.local</span>
+            </div>
+            <button class="btn btn-primary"
+                    hx-post="/api/test/dns"
+                    hx-target="#resultado-dns"
+                    hx-swap="innerHTML">
+                ▶ Probar
+            </button>
+            <div id="resultado-dns"></div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-info">
+                <strong>HTTPS</strong>
+                <span>Acceso a web01 via proxy inverso</span>
+            </div>
+            <button class="btn btn-primary"
+                    hx-post="/api/test/http"
+                    hx-target="#resultado-http"
+                    hx-swap="innerHTML">
+                ▶ Probar
+            </button>
+            <div id="resultado-http"></div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-info">
+                <strong>Squid</strong>
+                <span>Proxy de salida hacia internet</span>
+            </div>
+            <button class="btn btn-primary"
+                    hx-post="/api/test/squid"
+                    hx-target="#resultado-squid"
+                    hx-swap="innerHTML">
+                ▶ Probar
+            </button>
+            <div id="resultado-squid"></div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-info">
+                <strong>DHCP</strong>
+                <span>Servidor DHCP activo en LAN</span>
+            </div>
+            <button class="btn btn-primary"
+                    hx-post="/api/test/dhcp"
+                    hx-target="#resultado-dhcp"
+                    hx-swap="innerHTML">
+                ▶ Probar
+            </button>
+            <div id="resultado-dhcp"></div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ LOGS EN TIEMPO REAL ══════════════════════════════════════════════ -->
+<section class="card" id="logs">
+    <div class="card-header">
+        <h2>📋 Logs Centralizados</h2>
+        <div class="log-selector">
+            <label>Servicio:</label>
+            <select id="servicio-log" onchange="cargarLogs(this.value)">
+                <option value="ssh">SSH</option>
+                <option value="dns">DNS</option>
+                <option value="dhcp">DHCP</option>
+                <option value="web">Web</option>
+                <option value="proxy">Proxy</option>
+                <option value="squid">Squid</option>
+                <option value="mysql">MySQL</option>
+            </select>
+            <button class="btn btn-secondary" onclick="cargarLogs(document.getElementById('servicio-log').value)">
+                🔄 Actualizar
+            </button>
+        </div>
+    </div>
+    <div id="contenedor-logs"
+         hx-get="/api/logs/ssh"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="loading-placeholder">Cargando logs...</div>
+    </div>
+</section>
+
+<!-- ═══ DHCP LEASES ═══════════════════════════════════════════════════════ -->
+<section class="card" id="dhcp">
+    <div class="card-header">
+        <h2>📡 Leases DHCP Activos</h2>
+        <button class="btn btn-secondary"
+                hx-get="/api/dhcp/leases"
+                hx-target="#tabla-dhcp"
+                hx-swap="innerHTML">
+            🔄 Actualizar
+        </button>
+    </div>
+    <div id="tabla-dhcp"
+         hx-get="/api/dhcp/leases"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="loading-placeholder">Cargando leases...</div>
+    </div>
+</section>
+
+<!-- ═══ MYSQL ════════════════════════════════════════════════════════════ -->
+<section class="card" id="mysql">
+    <div class="card-header">
+        <h2>🗄️ Base de Datos MySQL — SystemEvents</h2>
+    </div>
+    <div class="mysql-buttons">
+        <button class="btn btn-primary"
+                hx-get="/api/mysql/total_por_host"
+                hx-target="#resultado-mysql"
+                hx-swap="innerHTML">
+            📊 Logs por host
+        </button>
+        <button class="btn btn-primary"
+                hx-get="/api/mysql/ultimos_eventos"
+                hx-target="#resultado-mysql"
+                hx-swap="innerHTML">
+            🕐 Últimos 20 eventos
+        </button>
+        <button class="btn btn-primary"
+                hx-get="/api/mysql/por_severidad"
+                hx-target="#resultado-mysql"
+                hx-swap="innerHTML">
+            ⚠️ Por severidad
+        </button>
+        <button class="btn btn-primary"
+                hx-get="/api/mysql/ultimas_24h"
+                hx-target="#resultado-mysql"
+                hx-swap="innerHTML">
+            📈 Actividad 24h
+        </button>
+    </div>
+    <div id="resultado-mysql"
+         hx-get="/api/mysql/total_por_host"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="loading-placeholder">Cargando datos MySQL...</div>
+    </div>
+</section>
+
+<!-- ═══ TOPOLOGÍA ════════════════════════════════════════════════════════ -->
+<section class="card" id="topologia">
+    <div class="card-header">
+        <h2>🗺️ Topología de Red</h2>
+    </div>
+    {% include 'partials/topologia.html' %}
+</section>
+
+<!-- ═══ ANSIBLE ══════════════════════════════════════════════════════════ -->
+<section class="card" id="ansible">
+    <div class="card-header">
+        <h2>⚙️ Control Ansible</h2>
+    </div>
+    <p class="ansible-desc">Re-desplegar servicios individuales sin interrumpir el resto del laboratorio.</p>
+    <div class="ansible-grid">
+        {% for tag in ['ssh', 'dns', 'dhcp', 'web', 'proxy', 'squid', 'syslog', 'mysql', 'firewall', 'postdeploy'] %}
+        <button class="btn btn-ansible"
+                hx-post="/api/ansible/{{ tag }}"
+                hx-target="#resultado-ansible"
+                hx-swap="innerHTML">
+            ▶ {{ tag }}
+        </button>
+        {% endfor %}
+    </div>
+    <div id="resultado-ansible"></div>
+</section>
+
+<script>
+function cargarLogs(servicio) {
+    htmx.ajax('GET', '/api/logs/' + servicio, {target: '#contenedor-logs', swap: 'innerHTML'});
+}
+</script>
+{% endblock %}

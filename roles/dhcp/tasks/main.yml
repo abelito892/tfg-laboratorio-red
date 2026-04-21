@@ -1,0 +1,76 @@
+---
+# Rol: dhcp
+# Descripción: Despliega el contenedor dhcp01 con ISC DHCP Server en la red LAN
+
+# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
+- name: "Construir imagen Docker del servidor DHCP"
+  community.docker.docker_image:
+    name: "tfg/dhcp"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+- name: "Desplegar contenedor dhcp01"
+  community.docker.docker_container:
+    name: "{{ contenedores.dhcp.nombre }}"
+    image: "tfg/dhcp:latest"
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ redes.lan.nombre }}"
+        ipv4_address: "{{ contenedores.dhcp.ip }}"
+
+- name: "Conectar dhcp01 a la red de gestión con IP fija"
+  ansible.builtin.shell: |
+    docker network disconnect mgmt_net {{ contenedores.dhcp.nombre }} 2>/dev/null || true
+    docker network connect --ip {{ contenedores.dhcp.ip_mgmt }} mgmt_net {{ contenedores.dhcp.nombre }}
+  register: ip_mgmt_result
+  changed_when: true
+  failed_when:
+    - ip_mgmt_result.rc != 0
+    - "'already exists' not in ip_mgmt_result.stderr"
+
+# ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
+- name: "Generar dhcpd.conf desde plantilla"
+  ansible.builtin.template:
+    src: dhcpd.conf.j2
+    dest: "/tmp/dhcpd.conf_{{ contenedores.dhcp.nombre }}"
+    mode: '0644'
+  notify: "Recargar DHCP"
+
+- name: "Copiar dhcpd.conf al contenedor"
+  ansible.builtin.command: >
+    docker cp /tmp/dhcpd.conf_{{ contenedores.dhcp.nombre }}
+    {{ contenedores.dhcp.nombre }}:/etc/dhcp/dhcpd.conf
+  changed_when: true
+  notify: "Recargar DHCP"
+
+- name: "Verificar configuración de dhcpd"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.dhcp.nombre }}
+    dhcpd -t -cf /etc/dhcp/dhcpd.conf
+  register: check_dhcpd
+  changed_when: false
+
+# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
+- name: "Configurar envío de logs DHCP a syslog01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.dhcp.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
+  register: logs_config
+  changed_when: "logs_config.rc == 0"
+  notify: "Reiniciar rsyslog DHCP"
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Verificar que el contenedor dhcp01 está activo"
+  ansible.builtin.command: >
+    docker ps --filter name={{ contenedores.dhcp.nombre }}
+  register: estado_dhcp
+  changed_when: false
+
+- name: "Mostrar estado del contenedor dhcp01"
+  ansible.builtin.debug:
+    msg: "{{ estado_dhcp.stdout_lines }}"

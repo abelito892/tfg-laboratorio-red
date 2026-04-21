@@ -1,0 +1,35 @@
+# Configuración Nginx del servidor web - TFG ASIR
+# Gestionado por Ansible - no editar manualmente
+
+# Redirigir HTTP → HTTPS
+server {
+    listen 80;
+    server_name web01.laboratorio.local;
+    return 301 https://$host$request_uri;
+}
+
+# Servidor HTTPS
+server {
+    listen 443 ssl;
+    server_name web01.laboratorio.local;
+
+    # Certificado SSL autofirmado (generado en el build)
+    ssl_certificate     /etc/ssl/certs/nginx.crt;
+    ssl_certificate_key /etc/ssl/private/nginx.key;
+
+    # Protocolos y cifrados seguros
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # Directorio raíz del sitio
+    root /var/www/laboratorio;
+    index index.html;
+
+    # Logging
+    access_log /var/log/nginx/web01_access.log;
+    error_log  /var/log/nginx/web01_error.log;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

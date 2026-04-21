@@ -1,0 +1,12 @@
+---
+# Variables específicas del contenedor firewall
+
+# Puertos que el firewall permitirá desde WAN hacia LAN
+puertos_permitidos_wan_lan:
+  - { proto: tcp, puerto: 22,  descripcion: "SSH" }
+  - { proto: tcp, puerto: 80,  descripcion: "HTTP" }
+  - { proto: tcp, puerto: 443, descripcion: "HTTPS" }
+
+# Puertos que el firewall permitirá desde WAN hacia el propio firewall
+puertos_permitidos_wan_fw:
+  - { proto: tcp, puerto: 22, descripcion: "SSH administracion" }

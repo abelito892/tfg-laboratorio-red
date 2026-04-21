@@ -1,0 +1,96 @@
+---
+# Rol: dns
+# Descripción: Despliega el contenedor dns01 con BIND9 en la red LAN
+
+# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
+- name: "Construir imagen Docker del servidor DNS"
+  community.docker.docker_image:
+    name: "tfg/dns"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+- name: "Desplegar contenedor dns01"
+  community.docker.docker_container:
+    name: "{{ contenedores.dns.nombre }}"
+    image: "tfg/dns:latest"
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ redes.lan.nombre }}"
+        ipv4_address: "{{ contenedores.dns.ip }}"
+
+- name: "Conectar dns01 a la red de gestión con IP fija"
+  ansible.builtin.shell: |
+    docker network disconnect mgmt_net {{ contenedores.dns.nombre }} 2>/dev/null || true
+    docker network connect --ip {{ contenedores.dns.ip_mgmt }} mgmt_net {{ contenedores.dns.nombre }}
+  register: ip_mgmt_result
+  changed_when: true
+  failed_when:
+    - ip_mgmt_result.rc != 0
+    - "'already exists' not in ip_mgmt_result.stderr"
+
+# ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
+- name: "Generar named.conf desde plantilla"
+  ansible.builtin.template:
+    src: named.conf.j2
+    dest: "/tmp/named.conf_{{ contenedores.dns.nombre }}"
+    mode: '0644'
+  notify: "Recargar DNS"
+
+- name: "Copiar named.conf al contenedor"
+  ansible.builtin.command: >
+    docker cp /tmp/named.conf_{{ contenedores.dns.nombre }}
+    {{ contenedores.dns.nombre }}:/etc/bind/named.conf
+  changed_when: true
+  notify: "Recargar DNS"
+
+- name: "Copiar zona directa al contenedor"
+  ansible.builtin.command: >
+    docker cp {{ role_path }}/files/db.laboratorio.local
+    {{ contenedores.dns.nombre }}:/etc/bind/db.laboratorio.local
+  changed_when: true
+  notify: "Recargar DNS"
+
+- name: "Copiar zona inversa al contenedor"
+  ansible.builtin.command: >
+    docker cp {{ role_path }}/files/db.192.168.100
+    {{ contenedores.dns.nombre }}:/etc/bind/db.192.168.100
+  changed_when: true
+  notify: "Recargar DNS"
+
+- name: "Verificar configuración de BIND9"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.dns.nombre }} named-checkconf /etc/bind/named.conf
+  register: check_named
+  changed_when: false
+
+- name: "Verificar zona laboratorio.local"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.dns.nombre }}
+    named-checkzone laboratorio.local /etc/bind/db.laboratorio.local
+  register: check_zona
+  changed_when: false
+
+# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
+- name: "Configurar envío de logs DNS a syslog01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.dns.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
+  register: logs_config
+  changed_when: "logs_config.rc == 0"
+  notify: "Reiniciar rsyslog DNS"
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Verificar que el contenedor dns01 está activo"
+  ansible.builtin.command: >
+    docker ps --filter name={{ contenedores.dns.nombre }}
+  register: estado_dns
+  changed_when: false
+
+- name: "Mostrar estado del contenedor dns01"
+  ansible.builtin.debug:
+    msg: "{{ estado_dns.stdout_lines }}"

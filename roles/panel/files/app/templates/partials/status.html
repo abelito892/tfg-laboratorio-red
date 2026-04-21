@@ -1,0 +1,18 @@
+<div class="status-header">
+    <span class="timestamp">Actualizado: {{ timestamp }}</span>
+    <span class="status-summary">
+        {{ estados | selectattr('corriendo') | list | length }} / {{ estados | length }} activos
+    </span>
+</div>
+<div class="status-grid">
+{% for c in estados %}
+<div class="status-card {% if c.corriendo %}status-ok{% else %}status-error{% endif %}">
+    <div class="status-icon">{% if c.corriendo %}✅{% else %}❌{% endif %}</div>
+    <div class="status-name">{{ c.nombre }}</div>
+    <div class="status-ip">{{ c.ip }}</div>
+    <div class="status-badge {% if c.corriendo %}badge-ok{% else %}badge-error{% endif %}">
+        {{ c.estado }}
+    </div>
+</div>
+{% endfor %}
+</div>

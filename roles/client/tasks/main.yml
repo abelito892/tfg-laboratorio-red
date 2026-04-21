@@ -1,0 +1,46 @@
+---
+# Rol: client
+# Descripción: Despliega client01 como contenedor de pruebas en la LAN
+
+# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
+- name: "Construir imagen Docker del cliente de pruebas"
+  community.docker.docker_image:
+    name: "tfg/client"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+- name: "Desplegar contenedor client01"
+  community.docker.docker_container:
+    name: "{{ contenedores.client.nombre }}"
+    image: "tfg/client:latest"
+    state: started
+    restart_policy: unless-stopped
+    capabilities:
+      - NET_ADMIN
+    networks:
+      - name: "{{ redes.lan.nombre }}"
+
+# ─── CONFIGURACIÓN DE RED ────────────────────────────────────────────────────
+- name: "Añadir ruta estática hacia DMZ a través de fw01"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.client.nombre }}
+    ip route add 172.21.0.0/24 via {{ contenedores.firewall.ip_lan }}
+  register: ruta_dmz
+  changed_when: ruta_dmz.rc == 0
+  failed_when: ruta_dmz.rc != 0 and 'exists' not in ruta_dmz.stderr
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Verificar que el contenedor client01 está activo"
+  ansible.builtin.command: >
+    docker ps --filter name={{ contenedores.client.nombre }}
+  register: estado_client
+  changed_when: false
+
+- name: "Mostrar estado del contenedor client01"
+  ansible.builtin.debug:
+    msg: "{{ estado_client.stdout_lines }}"

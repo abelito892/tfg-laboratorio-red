@@ -1,0 +1,102 @@
+---
+# Variables globales del laboratorio - TFG ASIR
+# Modificar aquí afecta a todos los roles
+
+# ─── Redes Docker ───────────────────────────────────────
+redes:
+  wan:
+    nombre: wan_net
+    subnet: "172.20.0.0/24"
+    gateway: "172.20.0.1"
+  dmz:
+    nombre: dmz_net
+    subnet: "172.21.0.0/24"
+    gateway: "172.21.0.1"
+  lan:
+    nombre: lan_net
+    subnet: "192.168.100.0/24"
+    gateway: "192.168.100.1"
+  mgmt:
+    nombre: mgmt_net
+    subnet: "172.22.0.0/24"
+    gateway: "172.22.0.1"
+  db:
+    nombre: db_net
+    subnet: "172.23.0.0/24"
+    gateway: "172.23.0.1"
+
+# ─── Contenedores ────────────────────────────────────────
+contenedores:
+  firewall:
+    nombre: fw01
+    imagen: "ubuntu:24.04"
+    ip_wan: "172.20.0.2"
+    ip_lan: "192.168.100.2"
+    ip_dmz: "172.21.0.2"
+  ssh:
+    nombre: ssh01
+    imagen: "ubuntu:24.04"
+    ip: "192.168.100.10"
+    ip_mgmt: "172.22.0.11"
+  dns:
+    nombre: dns01
+    imagen: "ubuntu:24.04"
+    ip: "192.168.100.20"
+    ip_mgmt: "172.22.0.12"
+  dhcp:
+    nombre: dhcp01
+    imagen: "ubuntu:24.04"
+    ip: "192.168.100.30"
+    ip_mgmt: "172.22.0.13"
+  web:
+    nombre: web01
+    imagen: "ubuntu:24.04"
+    ip: "172.21.0.20"
+    ip_mgmt: "172.22.0.14"
+  proxy:
+    nombre: proxy01
+    imagen: "ubuntu:24.04"
+    ip: "172.21.0.10"
+    ip_mgmt: "172.22.0.15"
+  squid:
+    nombre: squid01
+    imagen: "ubuntu:24.04"
+    ip: "192.168.100.40"
+    ip_mgmt: "172.22.0.16"
+  client:
+    nombre: client01
+    imagen: "ubuntu:24.04"
+    ip: "dhcp"
+  syslog:
+    nombre: syslog01
+    imagen: "ubuntu:24.04"
+    ip: "172.22.0.10"
+    ip_db: "172.23.0.20"
+  mysql:
+    nombre: mysql01
+    imagen: "mysql:8.0"
+    ip: "172.23.0.10"
+    ip_mgmt: "172.22.0.17"
+  dbadmin:
+    nombre: dbadmin01
+    imagen: "phpmyadmin/phpmyadmin:latest"
+  panel:
+    nombre: panel01
+    imagen: "tfg/panel:latest"
+
+# ─── Dominio del laboratorio ─────────────────────────────
+dns_dominio: "laboratorio.local"
+dns_forwarder_primario: "8.8.8.8"
+dns_forwarder_secundario: "1.1.1.1"
+
+# ─── Interfaz de red del host ────────────────────────────
+host_interfaz_red: "wlp0s20f3"
+
+# ─── Imagen base Docker ──────────────────────────────────
+imagen_base: "ubuntu:24.04"
+
+# ─── Credenciales MySQL ──────────────────────────────────
+mysql_root_password: "Root_TFG_2026!"
+mysql_rsyslog_user: "rsyslog"
+mysql_rsyslog_password: "Rsyslog_TFG_2026!"
+mysql_database: "Syslog"

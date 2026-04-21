@@ -1,0 +1,12 @@
+---
+- name: "Recargar Web"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.web.nombre }} nginx -s reload
+  changed_when: true
+  listen: "Recargar Web"
+
+- name: "Reiniciar rsyslog en web01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.web.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
+  changed_when: true
+  listen: "Reiniciar rsyslog Web"

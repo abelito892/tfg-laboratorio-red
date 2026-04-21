@@ -1,0 +1,7 @@
+---
+- name: "Reiniciar Panel"
+  community.docker.docker_container:
+    name: "{{ contenedores.panel.nombre }}"
+    state: started
+    restart: true
+  listen: "Reiniciar Panel"

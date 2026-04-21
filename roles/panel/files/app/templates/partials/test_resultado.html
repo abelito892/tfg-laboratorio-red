@@ -1,0 +1,10 @@
+<div class="test-result {% if ok %}result-ok{% else %}result-error{% endif %}">
+    <div class="result-header">
+        <span class="result-icon">{% if ok %}✅{% else %}❌{% endif %}</span>
+        <span class="result-desc">{{ descripcion }}</span>
+        <span class="timestamp">{{ timestamp }}</span>
+    </div>
+    {% if output %}
+    <pre class="result-output">{{ output }}</pre>
+    {% endif %}
+</div>

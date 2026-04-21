@@ -1,0 +1,36 @@
+{% if error %}
+<div class="alert alert-error">Error MySQL: {{ error }}</div>
+{% else %}
+<div class="mysql-result-header">
+    <h3>{{ titulo }}</h3>
+    <span class="timestamp">{{ timestamp }}</span>
+</div>
+{% if not filas %}
+<div class="alert alert-info">No hay datos disponibles</div>
+{% else %}
+<table class="tabla">
+    <thead>
+        <tr>
+        {% for col in columnas %}
+            <th>{{ col }}</th>
+        {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+    {% for fila in filas %}
+        <tr>
+        {% for celda in fila %}
+            <td>{{ celda }}</td>
+        {% endfor %}
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<div class="mysql-footer">
+    <span>{{ filas | length }} registros</span>
+    <a href="http://localhost:8080" target="_blank" class="btn btn-secondary">
+        Abrir phpMyAdmin →
+    </a>
+</div>
+{% endif %}
+{% endif %}

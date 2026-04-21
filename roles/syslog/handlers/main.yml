@@ -1,0 +1,7 @@
+---
+- name: "Recargar Syslog"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.syslog.nombre }}
+    pkill rsyslogd
+  changed_when: true
+  listen: "Recargar Syslog"

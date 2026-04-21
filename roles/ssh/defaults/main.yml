@@ -1,0 +1,5 @@
+---
+# Valores por defecto del rol SSH
+ssh_puerto: 22
+ssh_max_auth_tries: 6
+ssh_login_grace_time: 60

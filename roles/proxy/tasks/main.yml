@@ -1,0 +1,107 @@
+---
+# Rol: proxy
+# Descripción: Despliega proxy01 como proxy inverso Nginx en la DMZ
+
+# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
+- name: "Construir imagen Docker del proxy inverso"
+  community.docker.docker_image:
+    name: "tfg/proxy"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+- name: "Desplegar contenedor proxy01"
+  community.docker.docker_container:
+    name: "{{ contenedores.proxy.nombre }}"
+    image: "tfg/proxy:latest"
+    state: started
+    restart_policy: unless-stopped
+    capabilities:
+      - NET_ADMIN
+    networks:
+      - name: "{{ redes.dmz.nombre }}"
+        ipv4_address: "{{ contenedores.proxy.ip }}"
+
+- name: "Conectar proxy01 a la red de gestión con IP fija"
+  ansible.builtin.shell: |
+    docker network disconnect mgmt_net {{ contenedores.proxy.nombre }} 2>/dev/null || true
+    docker network connect --ip {{ contenedores.proxy.ip_mgmt }} mgmt_net {{ contenedores.proxy.nombre }}
+  register: ip_mgmt_result
+  changed_when: true
+  failed_when:
+    - ip_mgmt_result.rc != 0
+    - "'already exists' not in ip_mgmt_result.stderr"
+
+# ─── CONFIGURACIÓN DE RED ────────────────────────────────────────────────────
+- name: "Añadir ruta estática hacia WAN a través de fw01"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.proxy.nombre }}
+    ip route add 172.20.0.0/24 via {{ contenedores.firewall.ip_dmz }}
+  register: ruta_wan
+  changed_when: ruta_wan.rc == 0
+  failed_when: ruta_wan.rc != 0 and 'exists' not in ruta_wan.stderr
+
+- name: "Añadir ruta estática hacia LAN a través de fw01"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.proxy.nombre }}
+    ip route add 192.168.100.0/24 via {{ contenedores.firewall.ip_dmz }}
+  register: ruta_lan
+  changed_when: ruta_lan.rc == 0
+  failed_when: ruta_lan.rc != 0 and 'exists' not in ruta_lan.stderr
+
+# ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
+- name: "Generar nginx-proxy.conf desde plantilla"
+  ansible.builtin.template:
+    src: nginx-proxy.conf.j2
+    dest: "/tmp/nginx-proxy.conf_{{ contenedores.proxy.nombre }}"
+    mode: '0644'
+  notify: "Recargar Proxy"
+
+- name: "Copiar nginx-proxy.conf al contenedor"
+  ansible.builtin.command: >
+    docker cp /tmp/nginx-proxy.conf_{{ contenedores.proxy.nombre }}
+    {{ contenedores.proxy.nombre }}:/etc/nginx/sites-available/proxy
+  changed_when: true
+  notify: "Recargar Proxy"
+
+- name: "Activar sitio proxy en Nginx"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.proxy.nombre }}
+    ln -sf /etc/nginx/sites-available/proxy
+    /etc/nginx/sites-enabled/proxy
+  changed_when: true
+
+- name: "Desactivar sitio por defecto de Nginx"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.proxy.nombre }}
+    rm -f /etc/nginx/sites-enabled/default
+  changed_when: true
+
+- name: "Verificar configuración de Nginx proxy"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.proxy.nombre }} nginx -t
+  register: check_proxy
+  changed_when: false
+
+# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
+- name: "Configurar envío de logs Proxy a syslog01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.proxy.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
+  register: logs_config
+  changed_when: "logs_config.rc == 0"
+  notify: "Reiniciar rsyslog Proxy"
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Verificar que el contenedor proxy01 está activo"
+  ansible.builtin.command: >
+    docker ps --filter name={{ contenedores.proxy.nombre }}
+  register: estado_proxy
+  changed_when: false
+
+- name: "Mostrar estado del contenedor proxy01"
+  ansible.builtin.debug:
+    msg: "{{ estado_proxy.stdout_lines }}"

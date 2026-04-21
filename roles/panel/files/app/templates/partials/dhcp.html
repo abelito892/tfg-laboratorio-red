@@ -1,0 +1,25 @@
+<div class="timestamp">Actualizado: {{ timestamp }}</div>
+{% if not leases %}
+<div class="alert alert-info">No hay leases DHCP activos en este momento</div>
+{% else %}
+<table class="tabla">
+    <thead>
+        <tr>
+            <th>IP Asignada</th>
+            <th>MAC Address</th>
+            <th>Hostname</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for lease in leases %}
+        <tr>
+            <td><code>{{ lease.ip }}</code></td>
+            <td><code>{{ lease.mac }}</code></td>
+            <td>{{ lease.hostname }}</td>
+            <td><span class="badge-ok">{{ lease.estado }}</span></td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}

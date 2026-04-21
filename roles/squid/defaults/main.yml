@@ -1,0 +1,3 @@
+---
+# Valores por defecto del rol Squid
+squid_puerto: 3128

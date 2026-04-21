@@ -1,0 +1,15 @@
+---
+- name: "Recargar DHCP"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.dhcp.nombre }}
+    bash -c "pkill dhcpd; sleep 1;
+    /usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf
+    -pf /var/run/dhcpd.pid &"
+  changed_when: true
+  listen: "Recargar DHCP"
+
+- name: "Reiniciar rsyslog en dhcp01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.dhcp.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
+  changed_when: true
+  listen: "Reiniciar rsyslog DHCP"

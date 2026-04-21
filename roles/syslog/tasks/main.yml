@@ -1,0 +1,80 @@
+---
+# Rol: syslog
+# Descripción: Despliega syslog01 con rsyslog centralizado en mgmt_net
+#              Persiste logs en ficheros y en mysql01 vía ommysql
+
+# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
+- name: "Construir imagen Docker del servidor de logs"
+  community.docker.docker_image:
+    name: "tfg/syslog"
+    tag: "latest"
+    build:
+      path: "{{ role_path }}/files"
+      dockerfile: "Dockerfile"
+    source: build
+    force_source: false
+
+# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
+- name: "Desplegar contenedor syslog01"
+  community.docker.docker_container:
+    name: "{{ contenedores.syslog.nombre }}"
+    image: "tfg/syslog:latest"
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ redes.mgmt.nombre }}"
+        ipv4_address: "{{ contenedores.syslog.ip }}"
+
+- name: "Conectar syslog01 a la red de base de datos con IP fija"
+  ansible.builtin.shell: |
+    docker network disconnect db_net {{ contenedores.syslog.nombre }} 2>/dev/null || true
+    docker network connect --ip {{ contenedores.syslog.ip_db }} db_net {{ contenedores.syslog.nombre }}
+  register: ip_db_result
+  changed_when: true
+  failed_when:
+    - ip_db_result.rc != 0
+    - "'already exists' not in ip_db_result.stderr"
+
+# ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
+- name: "Generar rsyslog.conf desde plantilla"
+  ansible.builtin.template:
+    src: rsyslog.conf.j2
+    dest: "/tmp/rsyslog.conf_{{ contenedores.syslog.nombre }}"
+    mode: '0644'
+  notify: "Recargar Syslog"
+
+- name: "Copiar rsyslog.conf al contenedor"
+  ansible.builtin.command: >
+    docker cp /tmp/rsyslog.conf_{{ contenedores.syslog.nombre }}
+    {{ contenedores.syslog.nombre }}:/etc/rsyslog.conf
+  changed_when: true
+  notify: "Recargar Syslog"
+
+- name: "Crear directorio de logs del laboratorio"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.syslog.nombre }}
+    mkdir -p /var/log/laboratorio
+  changed_when: false
+
+- name: "Asignar propietario syslog al directorio de logs"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.syslog.nombre }}
+    chown -R syslog:syslog /var/log/laboratorio
+  changed_when: true
+
+- name: "Asignar propietario syslog al directorio de cola MySQL"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.syslog.nombre }}
+    chown -R syslog:syslog /var/spool/rsyslog
+  changed_when: true
+
+# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
+- name: "Verificar que el contenedor syslog01 está activo"
+  ansible.builtin.command: >
+    docker ps --filter name={{ contenedores.syslog.nombre }}
+  register: estado_syslog
+  changed_when: false
+
+- name: "Mostrar estado del contenedor syslog01"
+  ansible.builtin.debug:
+    msg: "{{ estado_syslog.stdout_lines }}"

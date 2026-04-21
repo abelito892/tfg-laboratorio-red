@@ -1,0 +1,127 @@
+# Configuración rsyslog centralizado - TFG ASIR
+# Gestionado por Ansible - no editar manualmente
+
+# ─── MÓDULOS DE ENTRADA ──────────────────────────────────
+module(load="imudp")
+input(type="imudp" port="514")
+
+module(load="imtcp")
+input(type="imtcp" port="514")
+
+# ─── MÓDULO DE SALIDA MYSQL ──────────────────────────────
+# ommysql permite guardar cada log recibido en la BBDD mysql01
+module(load="ommysql")
+
+# ─── PLANTILLAS DE LOG ───────────────────────────────────
+template(name="laboratorio-fmt" type="string"
+    string="%timegenerated% %HOSTNAME% %syslogtag%%msg%\n")
+
+# ─── COLA PERSISTENTE PARA MYSQL ─────────────────────────
+# Si mysql01 está caído, los mensajes se guardan en disco
+# en /var/spool/rsyslog y se vuelcan cuando MySQL vuelve
+main_queue(
+    queue.type="LinkedList"
+    queue.filename="mysql_queue"
+    queue.spoolDirectory="/var/spool/rsyslog"
+    queue.maxdiskspace="100m"
+    queue.saveonshutdown="on"
+)
+
+# ─── REGLAS DE ENRUTAMIENTO ──────────────────────────────
+# Los clientes envían los logs a syslog01 a través de mgmt_net,
+# así que filtramos por la IP que tienen en esa red (ip_mgmt).
+# Cada log se escribe en DOS sitios: fichero local + MySQL
+
+# Logs de SSH (ssh01)
+if $fromhost-ip == '{{ contenedores.ssh.ip_mgmt }}' then {
+    action(type="omfile"
+           file="/var/log/laboratorio/ssh.log"
+           template="laboratorio-fmt")
+    action(type="ommysql"
+           server="{{ contenedores.mysql.ip }}"
+           db="{{ mysql_database }}"
+           uid="{{ mysql_rsyslog_user }}"
+           pwd="{{ mysql_rsyslog_password }}")
+    stop
+}
+
+# Logs de DNS (dns01)
+if $fromhost-ip == '{{ contenedores.dns.ip_mgmt }}' then {
+    action(type="omfile"
+           file="/var/log/laboratorio/dns.log"
+           template="laboratorio-fmt")
+    action(type="ommysql"
+           server="{{ contenedores.mysql.ip }}"
+           db="{{ mysql_database }}"
+           uid="{{ mysql_rsyslog_user }}"
+           pwd="{{ mysql_rsyslog_password }}")
+    stop
+}
+
+# Logs de DHCP (dhcp01)
+if $fromhost-ip == '{{ contenedores.dhcp.ip_mgmt }}' then {
+    action(type="omfile"
+           file="/var/log/laboratorio/dhcp.log"
+           template="laboratorio-fmt")
+    action(type="ommysql"
+           server="{{ contenedores.mysql.ip }}"
+           db="{{ mysql_database }}"
+           uid="{{ mysql_rsyslog_user }}"
+           pwd="{{ mysql_rsyslog_password }}")
+    stop
+}
+
+# Logs del servidor web (web01)
+if $fromhost-ip == '{{ contenedores.web.ip_mgmt }}' then {
+    action(type="omfile"
+           file="/var/log/laboratorio/web.log"
+           template="laboratorio-fmt")
+    action(type="ommysql"
+           server="{{ contenedores.mysql.ip }}"
+           db="{{ mysql_database }}"
+           uid="{{ mysql_rsyslog_user }}"
+           pwd="{{ mysql_rsyslog_password }}")
+    stop
+}
+
+# Logs del proxy inverso (proxy01)
+if $fromhost-ip == '{{ contenedores.proxy.ip_mgmt }}' then {
+    action(type="omfile"
+           file="/var/log/laboratorio/proxy.log"
+           template="laboratorio-fmt")
+    action(type="ommysql"
+           server="{{ contenedores.mysql.ip }}"
+           db="{{ mysql_database }}"
+           uid="{{ mysql_rsyslog_user }}"
+           pwd="{{ mysql_rsyslog_password }}")
+    stop
+}
+
+# Logs de Squid (squid01)
+if $fromhost-ip == '{{ contenedores.squid.ip_mgmt }}' then {
+    action(type="omfile"
+           file="/var/log/laboratorio/squid.log"
+           template="laboratorio-fmt")
+    action(type="ommysql"
+           server="{{ contenedores.mysql.ip }}"
+           db="{{ mysql_database }}"
+           uid="{{ mysql_rsyslog_user }}"
+           pwd="{{ mysql_rsyslog_password }}")
+    stop
+}
+
+# Logs de MySQL (mysql01)
+if $fromhost-ip == '{{ contenedores.mysql.ip_mgmt }}' then {
+    action(type="omfile"
+           file="/var/log/laboratorio/mysql.log"
+           template="laboratorio-fmt")
+    action(type="ommysql"
+           server="{{ contenedores.mysql.ip }}"
+           db="{{ mysql_database }}"
+           uid="{{ mysql_rsyslog_user }}"
+           pwd="{{ mysql_rsyslog_password }}")
+    stop
+}
+
+# Resto de logs (locales del propio syslog01 o no clasificados)
+*.* /var/log/laboratorio/otros.log

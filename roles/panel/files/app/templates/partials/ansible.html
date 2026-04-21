@@ -1,0 +1,8 @@
+<div class="ansible-result {% if ok %}result-ok{% else %}result-error{% endif %}">
+    <div class="result-header">
+        <span class="result-icon">{% if ok %}✅{% else %}❌{% endif %}</span>
+        <span>ansible-playbook site.yml --tags={{ tag }}</span>
+        <span class="timestamp">{{ timestamp }}</span>
+    </div>
+    <pre class="ansible-output">{{ output }}</pre>
+</div>

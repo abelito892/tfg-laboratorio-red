@@ -1,0 +1,39 @@
+// Configuración BIND9 del laboratorio TFG - ASIR
+// Gestionado por Ansible - no editar manualmente
+
+options {
+    directory "/var/cache/bind";
+
+    // Escuchar en todas las interfaces del contenedor
+    listen-on { any; };
+    listen-on-v6 { none; };
+
+    // Permitir consultas desde la red LAN y el propio contenedor
+    allow-query { {{ redes.lan.subnet }}; 127.0.0.1; };
+
+    // Reenviar consultas externas a DNS público
+    forwarders {
+        {{ dns_forwarder_primario }};
+        {{ dns_forwarder_secundario }};
+    };
+    forward only;
+
+    // Desactivar transferencias de zona (seguridad)
+    allow-transfer { none; };
+
+    dnssec-validation no;
+    recursion yes;
+};
+
+// Zona interna del laboratorio
+zone "{{ dns_dominio }}" {
+    type master;
+    file "/etc/bind/db.laboratorio.local";
+    allow-query { any; };
+};
+
+// Zona de resolución inversa
+zone "100.168.192.in-addr.arpa" {
+    type master;
+    file "/etc/bind/db.192.168.100";
+};

@@ -1,0 +1,4 @@
+---
+# Valores por defecto del rol dbadmin (phpMyAdmin)
+dbadmin_puerto_host: 8080
+dbadmin_puerto_contenedor: 80

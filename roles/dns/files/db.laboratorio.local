@@ -1,0 +1,20 @@
+$TTL 86400
+@   IN  SOA dns01.laboratorio.local. admin.laboratorio.local. (
+            2026040702  ; Serial (formato AAAAMMDDNN)
+            3600        ; Refresh
+            1800        ; Retry
+            604800      ; Expire
+            86400 )     ; Minimum TTL
+
+; Servidores de nombres
+@   IN  NS  dns01.laboratorio.local.
+
+; Registros A — contenedores del laboratorio
+fw01.laboratorio.local.     IN  A  192.168.100.2
+ssh01.laboratorio.local.    IN  A  192.168.100.10
+dns01.laboratorio.local.    IN  A  192.168.100.20
+dhcp01.laboratorio.local.   IN  A  192.168.100.30
+web01.laboratorio.local.    IN  A  172.21.0.20
+proxy01.laboratorio.local.  IN  A  172.21.0.10
+squid01.laboratorio.local.  IN  A  192.168.100.40
+syslog01.laboratorio.local. IN  A  172.22.0.10

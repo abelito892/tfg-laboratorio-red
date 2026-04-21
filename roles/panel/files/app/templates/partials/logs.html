@@ -1,0 +1,17 @@
+<div class="logs-header">
+    <span class="timestamp">Actualizado: {{ timestamp }}</span>
+    <span>Servicio: <strong>{{ servicio }}</strong></span>
+</div>
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% elif not logs %}
+<div class="alert alert-info">No hay logs disponibles para {{ servicio }}</div>
+{% else %}
+<div class="logs-container">
+{% for linea in logs %}
+<div class="log-line {% if 'error' in linea.lower() or 'fail' in linea.lower() %}log-error{% elif 'warn' in linea.lower() %}log-warn{% else %}log-info{% endif %}">
+    <span class="log-text">{{ linea }}</span>
+</div>
+{% endfor %}
+</div>
+{% endif %}
