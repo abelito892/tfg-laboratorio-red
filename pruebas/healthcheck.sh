@@ -28,6 +28,16 @@ function seccion() {
     echo -e "${AZUL}═══ $1 ═══${RESET}"
 }
 
+# ─── CALENTAMIENTO ───────────────────────────────────────────────────────────
+echo -e "${AZUL}Generando actividad inicial en el laboratorio...${RESET}"
+for c in ssh01 dns01 dhcp01 web01 proxy01 squid01; do
+    docker exec $c logger -t healthcheck "arranque del laboratorio" 2>/dev/null
+done
+# Forzar lease DHCP en client01
+docker exec client01 udhcpc -i eth0 -q 2>/dev/null || true
+sleep 5
+echo -e "${AZUL}Iniciando verificaciones...${RESET}"
+
 seccion "1. Contenedores activos"
 for c in fw01 ssh01 dns01 dhcp01 web01 proxy01 squid01 client01 syslog01 mysql01 dbadmin01 panel01; do
     test_check "$c corriendo" "docker ps --filter name=$c --filter status=running --format '{{.Names}}' | grep -q $c"

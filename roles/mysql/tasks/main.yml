@@ -1,7 +1,6 @@
 ---
 # Rol: mysql
 # Descripción: Despliega mysql01 como backend de persistencia de logs
-#              en la red db_net, recibe logs de syslog01 vía ommysql
 
 # ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
 - name: "Construir imagen Docker de MySQL + rsyslog"
@@ -47,11 +46,14 @@
     {{ contenedores.mysql.nombre }}:/docker-entrypoint-initdb.d/init.sql
   changed_when: true
 
-# ─── ESPERAR A QUE MYSQL ESTÉ LISTO ──────────────────────────────────────────
-- name: "Esperar a que MySQL acepte conexiones (máximo 60s)"
+# ─── ESPERAR A QUE MYSQL ESTÉ COMPLETAMENTE LISTO ───────────────────────────
+# Esperamos hasta que root pueda autenticarse (no solo que mysqld responda)
+- name: "Esperar a que MySQL esté completamente inicializado (máximo 90s)"
   ansible.builtin.shell: |
-    for i in $(seq 1 30); do
-      if docker exec {{ contenedores.mysql.nombre }} bash -c 'mysqladmin ping -u root -p"$MYSQL_ROOT_PASSWORD" --silent' 2>/dev/null; then
+    for i in $(seq 1 45); do
+      result=$(docker exec {{ contenedores.mysql.nombre }} bash -c \
+        'mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1;" 2>&1')
+      if echo "$result" | grep -q "^1$"; then
         echo "MySQL listo tras ${i} intentos"
         exit 0
       fi
@@ -62,20 +64,21 @@
   register: mysql_ready
   changed_when: false
 
-# ─── APLICAR SCHEMA MANUALMENTE (por si init.sql no se ejecutó) ─────────────
-# Esto es idempotente: CREATE TABLE IF NOT EXISTS no falla si ya existe
+# ─── APLICAR SCHEMA ──────────────────────────────────────────────────────────
 - name: "Aplicar schema de rsyslog en la base de datos"
   ansible.builtin.shell: |
-    docker exec -i {{ contenedores.mysql.nombre }} bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD"' < {{ role_path }}/files/init.sql
+    docker exec -i {{ contenedores.mysql.nombre }} bash -c \
+      'mysql -u root -p"$MYSQL_ROOT_PASSWORD"' < {{ role_path }}/files/init.sql
   register: schema_result
   changed_when: schema_result.rc == 0
   failed_when: false
 
-# ─── CONFIGURACIÓN DE LOGS DEL PROPIO MYSQL ──────────────────────────────────
-# mysql01 también envía sus propios logs locales a syslog01
+# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
 - name: "Configurar envío de logs MySQL a syslog01"
   ansible.builtin.shell: |
-    docker exec {{ contenedores.mysql.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
+    docker exec {{ contenedores.mysql.nombre }} bash -c \
+      "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || \
+       echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
   register: logs_config
   changed_when: "logs_config.rc == 0"
   notify: "Reiniciar rsyslog MySQL"
@@ -83,14 +86,16 @@
 # ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
 - name: "Verificar que la base de datos Syslog existe"
   ansible.builtin.shell: |
-    docker exec {{ contenedores.mysql.nombre }} bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES LIKE \"Syslog\";"'
+    docker exec {{ contenedores.mysql.nombre }} bash -c \
+      'mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES LIKE \"Syslog\";" 2>/dev/null'
   register: db_check
   changed_when: false
   failed_when: "'Syslog' not in db_check.stdout"
 
 - name: "Verificar que la tabla SystemEvents existe"
   ansible.builtin.shell: |
-    docker exec {{ contenedores.mysql.nombre }} bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" Syslog -e "SHOW TABLES LIKE \"SystemEvents\";"'
+    docker exec {{ contenedores.mysql.nombre }} bash -c \
+      'mysql -u root -p"$MYSQL_ROOT_PASSWORD" Syslog -e "SHOW TABLES LIKE \"SystemEvents\";" 2>/dev/null'
   register: table_check
   changed_when: false
   failed_when: "'SystemEvents' not in table_check.stdout"
