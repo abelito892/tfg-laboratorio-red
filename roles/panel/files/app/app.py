@@ -30,7 +30,6 @@ SERVICIOS_LOG = ['ssh', 'dns', 'dhcp', 'web', 'proxy', 'squid', 'mysql']
 
 # ─── UTILIDADES ──────────────────────────────────────────────────────────────
 def docker_exec(contenedor, comando):
-    """Ejecuta un comando dentro de un contenedor Docker"""
     try:
         result = subprocess.run(
             ['docker', 'exec', contenedor, 'bash', '-c', comando],
@@ -43,7 +42,6 @@ def docker_exec(contenedor, comando):
         return str(e), 1
 
 def docker_run(comando):
-    """Ejecuta un comando docker en el host"""
     try:
         result = subprocess.run(
             comando, capture_output=True, text=True,
@@ -54,8 +52,17 @@ def docker_run(comando):
         return str(e), 1
 
 def get_mysql_connection():
-    """Obtiene conexión a MySQL"""
     return mysql.connector.connect(**MYSQL_CONFIG)
+
+def test_conexion(contenedor, ip, puerto, debe_conectar=True):
+    """Prueba conexión TCP con timeout de 3s"""
+    cmd = f"timeout 3 bash -c 'cat < /dev/null > /dev/tcp/{ip}/{puerto}' 2>&1; echo rc=$?"
+    out, _ = docker_exec(contenedor, cmd)
+    conecta = 'rc=0' in out
+    if debe_conectar:
+        return conecta, '✅ Permitido' if conecta else '❌ Bloqueado (error)'
+    else:
+        return not conecta, '✅ Bloqueado' if not conecta else '❌ Permitido (error)'
 
 # ─── RUTAS PRINCIPALES ───────────────────────────────────────────────────────
 @app.route('/')
@@ -65,7 +72,6 @@ def index():
 # ─── API: ESTADO CONTENEDORES ────────────────────────────────────────────────
 @app.route('/api/status')
 def api_status():
-    """Devuelve el estado de todos los contenedores"""
     estados = []
     for nombre in CONTENEDORES:
         out, rc = docker_run(
@@ -88,7 +94,6 @@ def api_status():
 # ─── API: LOGS ────────────────────────────────────────────────────────────────
 @app.route('/api/logs/<servicio>')
 def api_logs(servicio):
-    """Devuelve los últimos 20 logs de un servicio"""
     if servicio not in SERVICIOS_LOG:
         return render_template('partials/logs.html', logs=[], servicio=servicio,
                                error="Servicio no válido")
@@ -105,7 +110,6 @@ def api_logs(servicio):
 # ─── API: DHCP LEASES ─────────────────────────────────────────────────────────
 @app.route('/api/dhcp/leases')
 def api_dhcp_leases():
-    """Devuelve los leases DHCP activos"""
     out, rc = docker_exec('dhcp01', 'cat /var/lib/dhcp/dhcpd.leases')
     leases = []
     if rc == 0 and out:
@@ -131,7 +135,6 @@ def api_dhcp_leases():
 # ─── API: MYSQL CONSULTAS ─────────────────────────────────────────────────────
 @app.route('/api/mysql/<consulta>')
 def api_mysql(consulta):
-    """Ejecuta consultas MySQL prefabricadas"""
     consultas = {
         'total_por_host': {
             'titulo': 'Total de logs por host',
@@ -154,11 +157,9 @@ def api_mysql(consulta):
             'columnas': ['Hora', 'Total']
         }
     }
-
     if consulta not in consultas:
         return render_template('partials/mysql.html', error="Consulta no válida",
                                filas=[], columnas=[], titulo='')
-
     config = consultas[consulta]
     try:
         conn = get_mysql_connection()
@@ -181,7 +182,6 @@ def api_mysql(consulta):
 # ─── API: PRUEBAS CONECTIVIDAD ────────────────────────────────────────────────
 @app.route('/api/test/<prueba>', methods=['POST'])
 def api_test(prueba):
-    """Ejecuta pruebas de conectividad desde client01"""
     pruebas = {
         'ssh': {
             'descripcion': 'Conectividad SSH a ssh01 (192.168.100.10:22)',
@@ -209,31 +209,81 @@ def api_test(prueba):
             'comando': 'pgrep dhcpd && echo DHCP activo'
         }
     }
-
     if prueba not in pruebas:
         return render_template('partials/test_resultado.html',
                                ok=False, descripcion='Prueba no válida', output='',
                                timestamp=datetime.now().strftime('%H:%M:%S'))
-
     config = pruebas[prueba]
     out, rc = docker_exec(config['contenedor'], config['comando'])
-
     ok = rc == 0
     if prueba in ['http', 'squid'] and out in ['200', '301', '302']:
         ok = True
     elif prueba in ['http', 'squid']:
         ok = False
-
     return render_template('partials/test_resultado.html',
                            ok=ok,
                            descripcion=config['descripcion'],
                            output=out,
                            timestamp=datetime.now().strftime('%H:%M:%S'))
 
+# ─── API: FIREWALL ────────────────────────────────────────────────────────────
+@app.route('/api/firewall')
+def api_firewall():
+    """Ejecuta todas las pruebas de firewall y devuelve resultados"""
+    resultados = []
+
+    # Pruebas de tráfico PERMITIDO
+    pruebas_permitidas = [
+        ('client01', '172.21.0.10', 80,  'LAN → proxy01 HTTP (✅ debe funcionar)'),
+        ('client01', '172.21.0.10', 443, 'LAN → proxy01 HTTPS (✅ debe funcionar)'),
+        ('client01', '192.168.100.10', 22, 'LAN → SSH ssh01 (✅ debe funcionar)'),
+        ('client01', '192.168.100.20', 53, 'LAN → DNS dns01 (✅ debe funcionar)'),
+        ('proxy01',  '172.21.0.20', 443, 'DMZ proxy01 → web01 (✅ debe funcionar)'),
+    ]
+
+    for contenedor, ip, puerto, desc in pruebas_permitidas:
+        ok, estado = test_conexion(contenedor, ip, puerto, debe_conectar=True)
+        resultados.append({
+            'descripcion': desc,
+            'ok': ok,
+            'estado': estado,
+            'tipo': 'permitido'
+        })
+
+    # Pruebas de tráfico BLOQUEADO
+    pruebas_bloqueadas = [
+        ('proxy01', '192.168.100.10', 22, 'DMZ → LAN ssh01 (🚫 debe estar bloqueado)'),
+        ('web01',   '192.168.100.10', 22, 'DMZ → LAN ssh01 desde web01 (🚫 bloqueado)'),
+        ('proxy01', '192.168.100.20', 53, 'DMZ → LAN dns01 (🚫 debe estar bloqueado)'),
+        ('client01','172.21.0.20', 443,   'LAN → web01 directo HTTPS (🚫 bloqueado)'),
+        ('client01','172.21.0.20', 80,    'LAN → web01 directo HTTP (🚫 bloqueado)'),
+    ]
+
+    for contenedor, ip, puerto, desc in pruebas_bloqueadas:
+        ok, estado = test_conexion(contenedor, ip, puerto, debe_conectar=False)
+        resultados.append({
+            'descripcion': desc,
+            'ok': ok,
+            'estado': estado,
+            'tipo': 'bloqueado'
+        })
+
+    # Ruleset activo de fw01
+    ruleset, _ = docker_exec('fw01', 'nft list ruleset')
+
+    total = len(resultados)
+    correctos = sum(1 for r in resultados if r['ok'])
+
+    return render_template('partials/firewall.html',
+                           resultados=resultados,
+                           ruleset=ruleset,
+                           total=total,
+                           correctos=correctos,
+                           timestamp=datetime.now().strftime('%H:%M:%S'))
+
 # ─── API: ANSIBLE ─────────────────────────────────────────────────────────────
 @app.route('/api/ansible/<tag>', methods=['POST'])
 def api_ansible(tag):
-    """Ejecuta ansible-playbook en el host via docker exec al contenedor host"""
     tags_permitidos = ['ssh', 'dns', 'dhcp', 'web', 'proxy', 'squid',
                        'syslog', 'mysql', 'firewall', 'postdeploy']
     if tag not in tags_permitidos:
@@ -241,8 +291,6 @@ def api_ansible(tag):
                                ok=False, output='Tag no permitido', tag=tag,
                                timestamp=datetime.now().strftime('%H:%M:%S'))
     try:
-        # Ejecutamos ansible-playbook en el HOST via el socket Docker
-        # usando docker run con la imagen del panel que tiene ansible instalado
         result = subprocess.run(
             ['ansible-playbook', '/ansible/site.yml', f'--tags={tag}'],
             capture_output=True, text=True, timeout=180,

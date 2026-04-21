@@ -39,7 +39,6 @@
             </button>
             <div id="resultado-ssh"></div>
         </div>
-
         <div class="test-item">
             <div class="test-info">
                 <strong>DNS</strong>
@@ -53,7 +52,6 @@
             </button>
             <div id="resultado-dns"></div>
         </div>
-
         <div class="test-item">
             <div class="test-info">
                 <strong>HTTPS</strong>
@@ -67,7 +65,6 @@
             </button>
             <div id="resultado-http"></div>
         </div>
-
         <div class="test-item">
             <div class="test-info">
                 <strong>Squid</strong>
@@ -81,7 +78,6 @@
             </button>
             <div id="resultado-squid"></div>
         </div>
-
         <div class="test-item">
             <div class="test-info">
                 <strong>DHCP</strong>
@@ -95,6 +91,28 @@
             </button>
             <div id="resultado-dhcp"></div>
         </div>
+    </div>
+</section>
+
+<!-- ═══ PRUEBAS DE FIREWALL ══════════════════════════════════════════════ -->
+<section class="card" id="firewall">
+    <div class="card-header">
+        <h2>🔥 Verificación de Firewall</h2>
+        <button class="btn btn-secondary"
+                hx-get="/api/firewall"
+                hx-target="#resultado-firewall"
+                hx-swap="innerHTML">
+            🔄 Ejecutar pruebas
+        </button>
+    </div>
+    <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:1rem">
+        Verifica que fw01 permite y bloquea el tráfico según la política de segmentación de red definida.
+    </p>
+    <div id="resultado-firewall"
+         hx-get="/api/firewall"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="loading-placeholder">Ejecutando pruebas de firewall...</div>
     </div>
 </section>
 

@@ -1,0 +1,24 @@
+<div class="firewall-header">
+    <div class="firewall-summary {% if correctos == total %}summary-ok{% else %}summary-error{% endif %}">
+        <span class="summary-icon">{% if correctos == total %}✅{% else %}⚠️{% endif %}</span>
+        <span>{{ correctos }}/{{ total }} reglas correctas</span>
+        <span class="timestamp">{{ timestamp }}</span>
+    </div>
+</div>
+
+<div class="firewall-grid">
+{% for r in resultados %}
+<div class="firewall-item {% if r.ok %}fw-ok{% else %}fw-error{% endif %}">
+    <span class="fw-tipo {% if r.tipo == 'permitido' %}tipo-verde{% else %}tipo-rojo{% endif %}">
+        {% if r.tipo == 'permitido' %}PERMITIR{% else %}BLOQUEAR{% endif %}
+    </span>
+    <span class="fw-desc">{{ r.descripcion }}</span>
+    <span class="fw-estado">{{ r.estado }}</span>
+</div>
+{% endfor %}
+</div>
+
+<details class="ruleset-details">
+    <summary>Ver ruleset nftables activo en fw01</summary>
+    <pre class="ruleset-output">{{ ruleset }}</pre>
+</details>
