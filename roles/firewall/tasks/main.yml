@@ -17,7 +17,7 @@
     name: "{{ contenedores.firewall.nombre }}"
     image: "tfg/firewall:latest"
     state: started
-    restart_policy: unless-stopped
+    restart_policy: always
     capabilities:
       - NET_ADMIN
       - SYS_MODULE

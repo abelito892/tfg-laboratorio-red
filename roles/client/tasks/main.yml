@@ -1,6 +1,6 @@
 ---
 # Rol: client
-# Descripción: Despliega client01 como contenedor de pruebas en la LAN
+# Descripción: Despliega client01 como cliente de pruebas en la LAN
 
 # ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
 - name: "Construir imagen Docker del cliente de pruebas"
@@ -14,7 +14,7 @@
     force_source: false
 
 # ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
-- name: "Desplegar contenedor client01"
+- name: "Desplegar contenedor client01 con IP fija"
   community.docker.docker_container:
     name: "{{ contenedores.client.nombre }}"
     image: "tfg/client:latest"
@@ -24,15 +24,16 @@
       - NET_ADMIN
     networks:
       - name: "{{ redes.lan.nombre }}"
+        ipv4_address: "{{ contenedores.client.ip }}"
 
 # ─── CONFIGURACIÓN DE RED ────────────────────────────────────────────────────
-- name: "Añadir ruta estática hacia DMZ a través de fw01"
+- name: "Configurar gateway de client01 hacia fw01"
   ansible.builtin.command: >
     docker exec {{ contenedores.client.nombre }}
-    ip route add 172.21.0.0/24 via {{ contenedores.firewall.ip_lan }}
-  register: ruta_dmz
-  changed_when: ruta_dmz.rc == 0
-  failed_when: ruta_dmz.rc != 0 and 'exists' not in ruta_dmz.stderr
+    ip route replace default via {{ contenedores.firewall.ip_lan }}
+  changed_when: true
+  register: ruta_gw
+  failed_when: ruta_gw.rc != 0 and 'exists' not in ruta_gw.stderr
 
 # ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
 - name: "Verificar que el contenedor client01 está activo"
