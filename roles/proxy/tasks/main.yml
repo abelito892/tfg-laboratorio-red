@@ -105,3 +105,16 @@
 - name: "Mostrar estado del contenedor proxy01"
   ansible.builtin.debug:
     msg: "{{ estado_proxy.stdout_lines }}"
+
+# ─── PÁGINA PROPIA DEL PROXY ─────────────────────────────────────────────────
+- name: "Crear directorio /var/www/proxy01 en el contenedor"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.proxy.nombre }} mkdir -p /var/www/proxy01
+  changed_when: true
+
+- name: "Copiar página de info del proxy al contenedor"
+  ansible.builtin.command: >
+    docker cp {{ role_path }}/files/proxy01_web/index.html
+    {{ contenedores.proxy.nombre }}:/var/www/proxy01/index.html
+  changed_when: true
+  notify: "Recargar Proxy"

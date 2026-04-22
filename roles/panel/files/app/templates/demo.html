@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="demo-intro">
+    <h2>🧪 Demostración del Laboratorio</h2>
+    <p>Simulación de escenarios reales de uso de la red. Cada escenario ejecuta operaciones reales entre los contenedores y muestra los resultados en tiempo real.</p>
+    <a href="/" class="btn btn-secondary">← Volver al panel principal</a>
+</div>
+
+<!-- ═══ ESCENARIO 1 — SSH ═══════════════════════════════════════════════ -->
+<section class="card" id="esc-ssh">
+    <div class="card-header">
+        <div>
+            <h2>🖥️ Escenario 1 — Sesión SSH</h2>
+            <p class="demo-desc">client01 se conecta a ssh01 y ejecuta comandos del sistema</p>
+        </div>
+        <button class="btn btn-primary"
+                hx-post="/api/demo/ssh"
+                hx-target="#resultado-esc-ssh"
+                hx-swap="innerHTML">
+            ▶ Ejecutar
+        </button>
+    </div>
+    <div id="resultado-esc-ssh"></div>
+</section>
+
+<!-- ═══ ESCENARIO 2 — SCP ═══════════════════════════════════════════════ -->
+<section class="card" id="esc-scp">
+    <div class="card-header">
+        <div>
+            <h2>📁 Escenario 2 — Transferencia de fichero (SCP)</h2>
+            <p class="demo-desc">client01 crea un fichero y lo transfiere a ssh01 via SCP</p>
+        </div>
+        <button class="btn btn-primary"
+                hx-post="/api/demo/scp"
+                hx-target="#resultado-esc-scp"
+                hx-swap="innerHTML">
+            ▶ Ejecutar
+        </button>
+    </div>
+    <div id="resultado-esc-scp"></div>
+</section>
+
+<!-- ═══ ESCENARIO 3 — NAVEGACIÓN WEB ════════════════════════════════════ -->
+<section class="card" id="esc-web">
+    <div class="card-header">
+        <div>
+            <h2>🌐 Escenario 3 — Navegación web via Squid</h2>
+            <p class="demo-desc">client01 navega a internet usando squid01 como proxy de salida</p>
+        </div>
+        <button class="btn btn-primary"
+                hx-post="/api/demo/navegacion"
+                hx-target="#resultado-esc-web"
+                hx-swap="innerHTML">
+            ▶ Ejecutar
+        </button>
+    </div>
+    <div id="resultado-esc-web"></div>
+</section>
+
+<!-- ═══ ESCENARIO 4 — DNS ═══════════════════════════════════════════════ -->
+<section class="card" id="esc-dns">
+    <div class="card-header">
+        <div>
+            <h2>🔍 Escenario 4 — Resolución DNS interna</h2>
+            <p class="demo-desc">client01 resuelve los nombres del laboratorio usando dns01</p>
+        </div>
+        <button class="btn btn-primary"
+                hx-post="/api/demo/dns"
+                hx-target="#resultado-esc-dns"
+                hx-swap="innerHTML">
+            ▶ Ejecutar
+        </button>
+    </div>
+    <div id="resultado-esc-dns"></div>
+</section>
+
+<!-- ═══ ESCENARIO 5 — DHCP ══════════════════════════════════════════════ -->
+<section class="card" id="esc-dhcp">
+    <div class="card-header">
+        <div>
+            <h2>📡 Escenario 5 — Asignación DHCP</h2>
+            <p class="demo-desc">client01 solicita una IP dinámica al servidor dhcp01</p>
+        </div>
+        <button class="btn btn-primary"
+                hx-post="/api/demo/dhcp"
+                hx-target="#resultado-esc-dhcp"
+                hx-swap="innerHTML">
+            ▶ Ejecutar
+        </button>
+    </div>
+    <div id="resultado-esc-dhcp"></div>
+</section>
+
+<!-- ═══ ESCENARIO 6 — PROXY INVERSO ═════════════════════════════════════ -->
+<section class="card" id="esc-proxy">
+    <div class="card-header">
+        <div>
+            <h2>🔒 Escenario 6 — Acceso web via proxy inverso</h2>
+            <p class="demo-desc">client01 accede a web01 a través de proxy01 (proxy inverso HTTPS)</p>
+        </div>
+        <button class="btn btn-primary"
+                hx-post="/api/demo/proxy"
+                hx-target="#resultado-esc-proxy"
+                hx-swap="innerHTML">
+            ▶ Ejecutar
+        </button>
+    </div>
+    <div id="resultado-esc-proxy"></div>
+</section>
+
+<!-- ═══ ESCENARIO 7 — MYSQL ══════════════════════════════════════════════ -->
+<section class="card" id="esc-mysql">
+    <div class="card-header">
+        <div>
+            <h2>🗄️ Escenario 7 — Logs en MySQL en tiempo real</h2>
+            <p class="demo-desc">Consulta los eventos registrados durante esta sesión de demo</p>
+        </div>
+        <button class="btn btn-primary"
+                hx-get="/api/demo/mysql_demo"
+                hx-target="#resultado-esc-mysql"
+                hx-swap="innerHTML">
+            ▶ Consultar
+        </button>
+    </div>
+    <div id="resultado-esc-mysql"></div>
+</section>
+
+<!-- ═══ ACCESOS DIRECTOS ══════════════════════════════════════════════════ -->
+<section class="card" id="accesos">
+    <div class="card-header">
+        <h2>🔗 Accesos directos a servicios</h2>
+    </div>
+    <div class="accesos-grid">
+        <a href="http://localhost:8080" target="_blank" class="acceso-card">
+            <span class="acceso-icon">🗄️</span>
+            <span class="acceso-nombre">phpMyAdmin</span>
+            <span class="acceso-url">localhost:8080</span>
+        </a>
+        <a href="https://172.21.0.10/info" target="_blank" class="acceso-card">
+            <span class="acceso-icon">🔀</span>
+            <span class="acceso-nombre">Proxy inverso</span>
+            <span class="acceso-url">172.21.0.10</span>
+        </a>
+        <a href="https://172.21.0.20" target="_blank" class="acceso-card">
+            <span class="acceso-icon">🌐</span>
+            <span class="acceso-nombre">Web01 directo</span>
+            <span class="acceso-url">172.21.0.20</span>
+        </a>
+        <a href="/" class="acceso-card">
+            <span class="acceso-icon">📊</span>
+            <span class="acceso-nombre">Panel principal</span>
+            <span class="acceso-url">localhost:5000</span>
+        </a>
+    </div>
+</section>
+
+{% endblock %}

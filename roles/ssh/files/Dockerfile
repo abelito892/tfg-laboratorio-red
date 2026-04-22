@@ -8,7 +8,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /run/sshd
+
 RUN echo 'root:laboratorio' | chpasswd
+
+# Habilitar subsistema SFTP para SCP
+RUN echo 'Subsystem sftp /usr/lib/openssh/sftp-server' >> /etc/ssh/sshd_config
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

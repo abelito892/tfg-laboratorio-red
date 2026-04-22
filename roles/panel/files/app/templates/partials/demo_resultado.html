@@ -1,0 +1,25 @@
+<div class="demo-result {% if ok %}demo-ok{% else %}demo-error{% endif %}">
+    <div class="demo-result-header">
+        <span class="demo-result-icon">{% if ok %}✅{% else %}❌{% endif %}</span>
+        <span class="demo-result-titulo">{{ titulo }}</span>
+        <span class="timestamp">{{ timestamp }}</span>
+    </div>
+    {% if pasos %}
+    <div class="demo-pasos">
+        {% for paso in pasos %}
+        <div class="demo-paso {% if paso.ok %}paso-ok{% else %}paso-error{% endif %}">
+            <span class="paso-icon">{% if paso.ok %}✓{% else %}✗{% endif %}</span>
+            <span class="paso-desc">{{ paso.descripcion }}</span>
+            {% if paso.output %}
+            <pre class="paso-output">{{ paso.output }}</pre>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if log_generado %}
+    <div class="demo-log-aviso">
+        📋 Log generado — visible en la sección <strong>Logs Centralizados</strong> del panel
+    </div>
+    {% endif %}
+</div>

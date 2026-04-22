@@ -66,3 +66,10 @@
 - name: "Mostrar estado del contenedor ssh01"
   ansible.builtin.debug:
     msg: "{{ estado_ssh.stdout_lines }}"
+
+# ─── CONFIGURAR USUARIO UBUNTU PARA DEMOS ────────────────────────────────────
+- name: "Establecer contraseña del usuario ubuntu para demos"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.ssh.nombre }} bash -c \
+      'echo "ubuntu:TFG2026lab" | chpasswd'
+  changed_when: true

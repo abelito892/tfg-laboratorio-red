@@ -310,5 +310,267 @@ def api_ansible(tag):
                                ok=False, output=str(e), tag=tag,
                                timestamp=datetime.now().strftime('%H:%M:%S'))
 
+
+# ─── API: DEMO ────────────────────────────────────────────────────────────────
+SSH_PASS = 'TFG2026lab'
+SSH_USER = 'ubuntu'
+SSH_HOST = '192.168.100.10'
+
+@app.route('/demo')
+def demo():
+    return render_template('demo.html')
+
+@app.route('/api/demo/ssh', methods=['POST'])
+def demo_ssh():
+    """Escenario 1: Sesión SSH real desde client01 a ssh01"""
+    pasos = []
+    ok_total = True
+
+    # Paso 1: Verificar conectividad
+    out, rc = docker_exec('client01',
+        f'timeout 3 bash -c "cat < /dev/null > /dev/tcp/{SSH_HOST}/22" && echo OK')
+    pasos.append({'descripcion': f'Conectividad TCP a {SSH_HOST}:22', 'ok': rc==0, 'output': ''})
+    if rc != 0:
+        ok_total = False
+
+    # Paso 2: Ejecutar comandos via SSH
+    cmd = f"sshpass -p '{SSH_PASS}' ssh -o StrictHostKeyChecking=no {SSH_USER}@{SSH_HOST} 'echo === USUARIO: $(whoami) === && echo === HOSTNAME: $(hostname) === && echo === FECHA: $(date) === && echo === UPTIME: $(uptime -p) ==='"
+    out, rc = docker_exec('client01', cmd)
+    pasos.append({'descripcion': 'Sesión SSH ejecutada correctamente', 'ok': rc==0, 'output': out})
+    if rc != 0:
+        ok_total = False
+
+    # Paso 3: Verificar log
+    import time; time.sleep(2)
+    log_out, _ = docker_exec('syslog01', 'tail -3 /var/log/laboratorio/ssh.log')
+    pasos.append({'descripcion': 'Acceso registrado en ssh.log', 'ok': bool(log_out), 'output': log_out})
+
+    return render_template('partials/demo_resultado.html',
+                           ok=ok_total,
+                           titulo='Sesión SSH desde client01 a ssh01',
+                           pasos=pasos,
+                           log_generado=True,
+                           timestamp=datetime.now().strftime('%H:%M:%S'))
+
+@app.route('/api/demo/scp', methods=['POST'])
+def demo_scp():
+    """Escenario 2: Transferencia de fichero via SCP"""
+    pasos = []
+    ok_total = True
+
+    # Paso 1: Crear fichero en client01
+    marca = datetime.now().strftime('%Y%m%d_%H%M%S')
+    fichero = f'/tmp/tfg_demo_{marca}.txt'
+    contenido = f'Fichero de demo TFG ASIR - {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+    out, rc = docker_exec('client01', f'echo "{contenido}" > {fichero} && echo OK')
+    pasos.append({'descripcion': f'Fichero creado en client01: {fichero}', 'ok': rc==0, 'output': contenido})
+    if rc != 0:
+        ok_total = False
+
+    # Paso 2: Transferir via SCP
+    cmd = f"sshpass -p '{SSH_PASS}' scp -o StrictHostKeyChecking=no {fichero} {SSH_USER}@{SSH_HOST}:/tmp/"
+    out, rc = docker_exec('client01', cmd)
+    pasos.append({'descripcion': f'SCP a {SSH_HOST}:/tmp/', 'ok': rc==0, 'output': out or 'Transferencia completada'})
+    if rc != 0:
+        ok_total = False
+
+    # Paso 3: Verificar que llegó
+    nombre_fichero = fichero.split('/')[-1]
+    out, rc = docker_exec('ssh01', f'cat /tmp/{nombre_fichero}')
+    pasos.append({'descripcion': 'Fichero verificado en ssh01', 'ok': rc==0, 'output': out})
+    if rc != 0:
+        ok_total = False
+
+    return render_template('partials/demo_resultado.html',
+                           ok=ok_total,
+                           titulo='Transferencia SCP de client01 a ssh01',
+                           pasos=pasos,
+                           log_generado=True,
+                           timestamp=datetime.now().strftime('%H:%M:%S'))
+
+@app.route('/api/demo/navegacion', methods=['POST'])
+def demo_navegacion():
+    """Escenario 3: Navegación web via Squid"""
+    pasos = []
+    ok_total = True
+
+    # Paso 1: Verificar Squid
+    out, rc = docker_exec('client01',
+        'timeout 3 bash -c "cat < /dev/null > /dev/tcp/192.168.100.40/3128" && echo OK')
+    pasos.append({'descripcion': 'Conectividad a squid01 (192.168.100.40:3128)', 'ok': rc==0, 'output': ''})
+
+    # Paso 2: Navegar via Squid
+    out, rc = docker_exec('client01',
+        'curl -s -x http://192.168.100.40:3128 --max-time 10 http://example.com | head -20')
+    ok = rc == 0 and 'html' in out.lower()
+    pasos.append({'descripcion': 'Descarga de http://example.com via squid01', 'ok': ok, 'output': out[:300] if out else 'Sin respuesta'})
+    if not ok:
+        ok_total = False
+
+    # Paso 3: Ver log de squid
+    import time; time.sleep(2)
+    log_out, _ = docker_exec('syslog01', 'grep -v rsyslogd /var/log/laboratorio/squid.log | tail -3')
+    pasos.append({'descripcion': 'Acceso registrado en squid.log', 'ok': bool(log_out), 'output': log_out})
+
+    return render_template('partials/demo_resultado.html',
+                           ok=ok_total,
+                           titulo='Navegación web via proxy Squid',
+                           pasos=pasos,
+                           log_generado=True,
+                           timestamp=datetime.now().strftime('%H:%M:%S'))
+
+@app.route('/api/demo/dns', methods=['POST'])
+def demo_dns():
+    """Escenario 4: Resolución DNS interna"""
+    pasos = []
+    ok_total = True
+
+    nombres = [
+        ('ssh01.laboratorio.local',   '192.168.100.10'),
+        ('dns01.laboratorio.local',   '192.168.100.20'),
+        ('dhcp01.laboratorio.local',  '192.168.100.30'),
+        ('web01.laboratorio.local',   '172.21.0.20'),
+        ('proxy01.laboratorio.local', '172.21.0.10'),
+        ('squid01.laboratorio.local', '192.168.100.40'),
+    ]
+
+    for nombre, ip_esperada in nombres:
+        out, rc = docker_exec('client01',
+            f'nslookup {nombre} 192.168.100.20 | grep -A1 "Name:" | grep Address | awk \'{{print $2}}\'')
+        ip_resuelta = out.strip()
+        ok = ip_resuelta == ip_esperada
+        if not ok:
+            ok_total = False
+        pasos.append({
+            'descripcion': f'{nombre}',
+            'ok': ok,
+            'output': f'Esperada: {ip_esperada} → Resuelta: {ip_resuelta if ip_resuelta else "sin respuesta"}'
+        })
+
+    return render_template('partials/demo_resultado.html',
+                           ok=ok_total,
+                           titulo='Resolución DNS interna del laboratorio',
+                           pasos=pasos,
+                           log_generado=False,
+                           timestamp=datetime.now().strftime('%H:%M:%S'))
+
+@app.route('/api/demo/dhcp', methods=['POST'])
+def demo_dhcp():
+    """Escenario 5: Asignación DHCP"""
+    pasos = []
+    ok_total = True
+
+    # Paso 1: Verificar DHCP activo
+    out, rc = docker_exec('dhcp01', 'pgrep dhcpd && echo DHCP activo')
+    pasos.append({'descripcion': 'Servidor DHCP activo en dhcp01', 'ok': rc==0, 'output': out})
+
+    # Paso 2: Solicitar IP via udhcpc
+    out, rc = docker_exec('client01', 'udhcpc -i eth0 -q 2>&1')
+    ok = rc == 0 and 'obtained' in out.lower()
+    pasos.append({'descripcion': 'Solicitud DHCP desde client01', 'ok': ok, 'output': out})
+    if not ok:
+        ok_total = False
+
+    # Paso 3: Ver IP asignada
+    out, rc = docker_exec('client01', 'ip addr show eth0 | grep "inet " | awk \'{print $2}\'')
+    pasos.append({'descripcion': 'IP asignada a client01', 'ok': bool(out), 'output': out})
+
+    # Paso 4: Ver lease en dhcp01
+    import time; time.sleep(2)
+    out, rc = docker_exec('dhcp01',
+        'grep -A6 "binding state active" /var/lib/dhcp/dhcpd.leases | tail -6')
+    pasos.append({'descripcion': 'Lease registrado en dhcpd.leases', 'ok': bool(out), 'output': out})
+
+    return render_template('partials/demo_resultado.html',
+                           ok=ok_total,
+                           titulo='Asignación de IP dinámica via DHCP',
+                           pasos=pasos,
+                           log_generado=True,
+                           timestamp=datetime.now().strftime('%H:%M:%S'))
+
+@app.route('/api/demo/proxy', methods=['POST'])
+def demo_proxy():
+    """Escenario 6: Acceso web via proxy inverso"""
+    pasos = []
+    ok_total = True
+
+    # Paso 1: Conectividad a proxy01
+    out, rc = docker_exec('client01',
+        'timeout 3 bash -c "cat < /dev/null > /dev/tcp/172.21.0.10/443" && echo OK')
+    pasos.append({'descripcion': 'Conectividad HTTPS a proxy01 (172.21.0.10:443)', 'ok': rc==0, 'output': ''})
+
+    # Paso 2: Petición HTTPS via proxy inverso
+    out, rc = docker_exec('client01',
+        'curl -sk --max-time 10 https://172.21.0.10 | grep -o "<title>.*</title>" | head -1')
+    ok = rc == 0 and bool(out)
+    pasos.append({'descripcion': 'Petición HTTPS a proxy01 → web01', 'ok': ok,
+                  'output': f'Título recibido: {out}' if out else 'Sin título en respuesta'})
+    if not ok:
+        ok_total = False
+
+    # Paso 3: Código HTTP
+    out, rc = docker_exec('client01',
+        'curl -sk -o /dev/null -w "%{http_code}" --max-time 10 https://172.21.0.10')
+    pasos.append({'descripcion': f'Código HTTP recibido', 'ok': out in ['200','301','302'],
+                  'output': f'HTTP {out}'})
+
+    # Paso 4: Ver log proxy
+    import time; time.sleep(2)
+    log_out, _ = docker_exec('syslog01', 'grep -v rsyslogd /var/log/laboratorio/proxy.log | tail -3')
+    pasos.append({'descripcion': 'Acceso registrado en proxy.log', 'ok': bool(log_out), 'output': log_out})
+
+    return render_template('partials/demo_resultado.html',
+                           ok=ok_total,
+                           titulo='Acceso web via proxy inverso (proxy01 → web01)',
+                           pasos=pasos,
+                           log_generado=True,
+                           timestamp=datetime.now().strftime('%H:%M:%S'))
+
+@app.route('/api/demo/mysql_demo')
+def demo_mysql():
+    """Escenario 7: Logs en MySQL en tiempo real"""
+    pasos = []
+    ok_total = True
+
+    try:
+        conn = get_mysql_connection()
+        cursor = conn.cursor()
+
+        # Total de registros
+        cursor.execute('SELECT COUNT(*) FROM SystemEvents')
+        total = cursor.fetchone()[0]
+        pasos.append({'descripcion': 'Total de eventos en SystemEvents', 'ok': True,
+                      'output': f'{total} registros'})
+
+        # Últimos 5 eventos
+        cursor.execute('''
+            SELECT ReceivedAt, FromHost, SysLogTag, LEFT(Message, 60)
+            FROM SystemEvents ORDER BY ID DESC LIMIT 5
+        ''')
+        rows = cursor.fetchall()
+        output = '\n'.join([f'{r[0]} | {r[1]} | {r[2]} | {r[3]}' for r in rows])
+        pasos.append({'descripcion': 'Últimos 5 eventos registrados', 'ok': bool(rows),
+                      'output': output})
+
+        # Hosts que han enviado logs
+        cursor.execute('SELECT FromHost, COUNT(*) as n FROM SystemEvents GROUP BY FromHost ORDER BY n DESC')
+        hosts = cursor.fetchall()
+        output = '\n'.join([f'{h[0]}: {h[1]} eventos' for h in hosts])
+        pasos.append({'descripcion': 'Eventos por host origen', 'ok': bool(hosts), 'output': output})
+
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        ok_total = False
+        pasos.append({'descripcion': 'Conexión a MySQL', 'ok': False, 'output': str(e)})
+
+    return render_template('partials/demo_resultado.html',
+                           ok=ok_total,
+                           titulo='Consulta MySQL — SystemEvents en tiempo real',
+                           pasos=pasos,
+                           log_generado=False,
+                           timestamp=datetime.now().strftime('%H:%M:%S'))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>web01 — Servidor Web TFG ASIR</title>
+    <title>proxy01 — Proxy Inverso TFG ASIR</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -18,7 +18,7 @@
         .card {
             background: rgba(255,255,255,0.05);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(99,102,241,0.3);
             border-radius: 16px;
             padding: 3rem;
             max-width: 700px;
@@ -27,7 +27,7 @@
         }
         .badge {
             display: inline-block;
-            background: #10b981;
+            background: #6366f1;
             color: white;
             font-size: 0.75rem;
             font-weight: 700;
@@ -40,12 +40,23 @@
             font-size: 2rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
-            color: #34d399;
+            color: #818cf8;
         }
         .subtitle {
             color: rgba(255,255,255,0.6);
             font-size: 0.95rem;
             margin-bottom: 2rem;
+        }
+        .dmz-tag {
+            display: inline-block;
+            background: rgba(239,68,68,0.2);
+            border: 1px solid rgba(239,68,68,0.4);
+            color: #fca5a5;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            margin-left: 0.5rem;
+            font-family: monospace;
         }
         .info-grid {
             display: grid;
@@ -54,8 +65,8 @@
             margin-bottom: 2rem;
         }
         .info-item {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(99,102,241,0.08);
+            border: 1px solid rgba(99,102,241,0.2);
             border-radius: 8px;
             padding: 1rem;
         }
@@ -69,14 +80,23 @@
         .info-value {
             font-size: 1rem;
             font-weight: 600;
-            color: #34d399;
+            color: #818cf8;
             font-family: monospace;
         }
-        .divider {
-            border: none;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            margin: 1.5rem 0;
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem 0; }
+        .flujo {
+            background: rgba(99,102,241,0.08);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.8);
+            text-align: center;
+            margin-bottom: 1.5rem;
         }
+        .flujo span { color: #818cf8; font-weight: 700; }
+        .flujo .arrow { color: rgba(255,255,255,0.4); margin: 0 0.5rem; }
         .ssl-badge {
             display: flex;
             align-items: center;
@@ -84,36 +104,46 @@
             font-size: 0.85rem;
             color: rgba(255,255,255,0.5);
         }
-        .ssl-badge span { color: #34d399; font-weight: 600; }
+        .ssl-badge span { color: #818cf8; font-weight: 600; }
         .footer {
             margin-top: 2rem;
             font-size: 0.75rem;
             color: rgba(255,255,255,0.3);
             text-align: center;
         }
-        .dmz-tag {
+        .btn {
             display: inline-block;
-            background: rgba(239,68,68,0.2);
-            border: 1px solid rgba(239,68,68,0.4);
-            color: #fca5a5;
-            font-size: 0.75rem;
-            padding: 0.2rem 0.6rem;
-            border-radius: 4px;
-            margin-left: 0.5rem;
-            font-family: monospace;
+            margin-top: 1.5rem;
+            padding: 0.6rem 1.5rem;
+            background: #6366f1;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: background 0.2s;
         }
+        .btn:hover { background: #4f46e5; }
     </style>
 </head>
 <body>
     <div class="card">
-        <div class="badge">✅ SERVIDOR ACTIVO</div>
-        <h1>web01 <span class="dmz-tag">DMZ</span></h1>
-        <p class="subtitle">Servidor web Nginx con SSL — Laboratorio de Red TFG ASIR</p>
+        <div class="badge">🔀 PROXY INVERSO ACTIVO</div>
+        <h1>proxy01 <span class="dmz-tag">DMZ</span></h1>
+        <p class="subtitle">Proxy inverso Nginx con SSL — Laboratorio de Red TFG ASIR</p>
+
+        <div class="flujo">
+            <span>Cliente LAN</span>
+            <span class="arrow">→</span>
+            <span>proxy01 :443</span>
+            <span class="arrow">→</span>
+            <span>web01 :443</span>
+        </div>
 
         <div class="info-grid">
             <div class="info-item">
                 <div class="info-label">Dirección IP</div>
-                <div class="info-value">172.21.0.20</div>
+                <div class="info-value">172.21.0.10</div>
             </div>
             <div class="info-item">
                 <div class="info-label">Zona de red</div>
@@ -121,28 +151,30 @@
             </div>
             <div class="info-item">
                 <div class="info-label">Servicio</div>
-                <div class="info-value">Nginx + SSL</div>
+                <div class="info-value">Nginx Proxy</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Puerto</div>
+                <div class="info-label">Backend</div>
+                <div class="info-value">172.21.0.20</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Puerto entrada</div>
                 <div class="info-value">443 (HTTPS)</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Acceso desde LAN</div>
-                <div class="info-value">via proxy01</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Certificado</div>
-                <div class="info-value">Self-signed</div>
+                <div class="info-label">Puerto salida</div>
+                <div class="info-value">443 → web01</div>
             </div>
         </div>
 
         <hr class="divider">
 
         <div class="ssl-badge">
-            🔒 Conexión cifrada — <span>TLS/SSL activo</span>
-            &nbsp;·&nbsp; Certificado autofirmado para entorno de laboratorio
+            🔒 Terminación SSL — <span>TLS/SSL activo</span>
+            &nbsp;·&nbsp; Reenvío cifrado a web01
         </div>
+
+        <a href="/" class="btn">→ Acceder a web01 via proxy</a>
 
         <div class="footer">
             TFG — Administración de Sistemas Informáticos en Red · 2026
