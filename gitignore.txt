@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Ansible
+*.retry
+.vault_pass
+vault_pass.txt
+
+# Logs
+*.log
+
+# Temporales
+*.tmp
+*.bak
+*.swp
+*~
+
+# Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Credenciales (nunca subir)
+.env
+.env.local
+secrets.yml

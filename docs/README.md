@@ -2,24 +2,28 @@
 
 Laboratorio de red completamente virtualizado sobre un único host Ubuntu 24.04, usando **Docker** como plataforma de contenedores y **Ansible** como herramienta de automatización y despliegue.
 
-## Arquitectura
-┌─────────────────────────────────────────────────────────────┐
-│                        HOST Ubuntu 24.04                     │
-│                                                             │
-│  ┌──────────┐   ┌─────────────────┐   ┌─────────────────┐  │
-│  │   WAN    │   │       DMZ       │   │       LAN       │  │
-│  │172.20.0.0│   │  172.21.0.0/24  │   │ 192.168.100.0/24│  │
-│  │   /24    │   │                 │   │                 │  │
-│  │          │   │ proxy01 web01   │   │ ssh01  dns01    │  │
-│  └────┬─────┘   └────────┬────────┘   │ dhcp01 squid01  │  │
-│       │                  │            │ client01        │  │
-│       └──────── fw01 ────┘            └─────────────────┘  │
-│                  │                                          │
-│  ┌───────────────┴─────────────────────────────────────┐   │
-│  │              MGMT 172.22.0.0/24                      │   │
-│  │     syslog01   mysql01   dbadmin01   panel01         │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+**Autores:** Abel Baños · Daniel Montero · Amina Sefiani  
+**Ciclo:** ASIR — Administración de Sistemas Informáticos en Red · 2026
+
+---
+
+## Arquitectura de red
+
+![Topología de red del laboratorio](docs/topologia.svg)
+
+La infraestructura está segmentada en cuatro zonas de red independientes:
+
+| Zona | Subred | Función |
+|---|---|---|
+| WAN | 172.20.0.0/24 | Simula la red exterior / internet |
+| DMZ | 172.21.0.0/24 | Servicios expuestos al exterior |
+| LAN | 192.168.100.0/24 | Servicios internos protegidos |
+| MGMT | 172.22.0.0/24 | Gestión, logs y monitorización |
+| DB | 172.23.0.0/24 | Base de datos dedicada |
+
+El firewall **fw01** actúa como elemento central de enrutamiento entre zonas, aplicando reglas nftables que controlan el tráfico permitido y bloqueado.
+
+---
 
 ## Contenedores desplegados
 
@@ -38,13 +42,17 @@ Laboratorio de red completamente virtualizado sobre un único host Ubuntu 24.04,
 | dbadmin01 | host:8080 | phpMyAdmin | MGMT |
 | panel01 | host:5000 | Panel Flask+HTMX | MGMT |
 
+---
+
 ## Requisitos del sistema
 
 - **Sistema operativo:** Ubuntu 24.04 LTS
 - **RAM:** mínimo 6 GB (recomendado 8 GB)
 - **Disco:** mínimo 10 GB libres
 - **CPU:** 2 cores mínimo
-- **Conexión a internet** (para descargar imágenes Docker)
+- **Conexión a internet** para descargar imágenes Docker la primera vez
+
+---
 
 ## Instalación desde cero
 
@@ -66,10 +74,10 @@ El script instala y configura automáticamente:
 - Docker y grupo docker
 - Ansible y colección community.docker
 - netaddr (Python)
-- Sudoers para nft
+- Sudoers para nft sin contraseña
 - IP forwarding del kernel
-- Servicio systemd tfg-postdeploy
-- Detección automática de interfaz de red
+- Servicio systemd tfg-postdeploy (se ejecuta en cada arranque)
+- Detección automática de la interfaz de red
 
 > ⚠️ Si el script añade tu usuario al grupo docker por primera vez, ejecuta `newgrp docker` antes de continuar.
 
@@ -79,7 +87,7 @@ El script instala y configura automáticamente:
 ansible-playbook site.yml --ask-become-pass
 ```
 
-El despliegue completo tarda aproximadamente **3-5 minutos** la primera vez (descarga de imágenes Docker).
+El despliegue completo tarda aproximadamente **3–5 minutos** la primera vez (descarga de imágenes Docker). Las siguientes ejecuciones son mucho más rápidas al usar caché.
 
 ### 4. Verificar el despliegue
 
@@ -97,18 +105,22 @@ Resultado esperado: `✓ Todos los tests pasaron: 49/49 (100%)`
 
 Resultado esperado: `✓ Firewall funcionando correctamente: 12/12 pruebas OK`
 
+---
+
 ## Acceso a los servicios
 
 | Servicio | URL | Descripción |
 |---|---|---|
-| Panel de control | http://localhost:5000 | Dashboard principal |
-| Demo interactiva | http://localhost:5000/demo | Escenarios de demostración |
-| phpMyAdmin | http://localhost:8080 | Gestión de base de datos |
-| Web01 via proxy | https://172.21.0.10 | Acceso web via proxy inverso |
-| Web01 directo | https://172.21.0.20 | Servidor web directo |
-| Proxy info | https://172.21.0.10/info | Información del proxy |
+| Panel de control | http://localhost:5000 | Dashboard principal con estado en tiempo real |
+| Demo interactiva | http://localhost:5000/demo | 7 escenarios de demostración ejecutables |
+| phpMyAdmin | http://localhost:8080 | Gestión visual de la base de datos |
+| Web01 via proxy | https://172.21.0.10 | Acceso web a través del proxy inverso |
+| Proxy info | https://172.21.0.10/info | Información del proxy inverso |
+| Web01 directo | https://172.21.0.20 | Acceso directo al servidor web |
 
-> Los certificados SSL son autofirmados — el navegador mostrará advertencia de seguridad. Acepta el riesgo para continuar.
+> Los certificados SSL son autofirmados — el navegador mostrará advertencia de seguridad. Es esperado en entorno de laboratorio.
+
+---
 
 ## Credenciales
 
@@ -117,7 +129,9 @@ Resultado esperado: `✓ Firewall funcionando correctamente: 12/12 pruebas OK`
 | MySQL root | root | Root_TFG_2026! |
 | MySQL rsyslog | rsyslog | Rsyslog_TFG_2026! |
 | phpMyAdmin | root | Root_TFG_2026! |
-| SSH demo (ubuntu) | ubuntu | TFG2026lab |
+| SSH demo | ubuntu | TFG2026lab |
+
+---
 
 ## Gestión del laboratorio
 
@@ -134,53 +148,71 @@ ansible-playbook site.yml --ask-become-pass
 ansible-playbook site.yml --ask-become-pass --tags <servicio>
 ```
 
-Servicios disponibles: `ssh`, `dns`, `dhcp`, `web`, `proxy`, `squid`, `syslog`, `mysql`, `firewall`, `postdeploy`
+Servicios disponibles: `ssh`, `dns`, `dhcp`, `web`, `proxy`, `squid`, `syslog`, `mysql`, `firewall`, `postdeploy`, `panel`
 
-### Ver logs de un servicio
+### Ver logs en tiempo real
 
 ```bash
 docker exec syslog01 tail -f /var/log/laboratorio/ssh.log
 docker exec syslog01 tail -f /var/log/laboratorio/web.log
-# etc.
+docker exec syslog01 tail -f /var/log/laboratorio/proxy.log
 ```
 
+---
+
 ## Estructura del proyecto
+
+```
 tfg-laboratorio-red-main/
 ├── README.md
 ├── setup.sh                    # Script de preparación del entorno
 ├── site.yml                    # Playbook principal de despliegue
-├── teardown.yml                # Playbook de destrucción
+├── teardown.yml                # Playbook de destrucción completa
 ├── ansible.cfg
 ├── group_vars/
 │   └── all/
-│       └── main.yml            # Variables globales
+│       └── main.yml            # Variables globales del laboratorio
 ├── inventario/
 ├── roles/
 │   ├── firewall/               # fw01 — nftables
 │   ├── ssh/                    # ssh01 — OpenSSH
 │   ├── dns/                    # dns01 — BIND9
 │   ├── dhcp/                   # dhcp01 — ISC DHCP
-│   ├── web/                    # web01 — Nginx+SSL
+│   ├── web/                    # web01 — Nginx + SSL
 │   ├── proxy/                  # proxy01 — Nginx proxy inverso
 │   ├── squid/                  # squid01 — Squid
 │   ├── client/                 # client01 — cliente de pruebas
-│   ├── syslog/                 # syslog01 — rsyslog central
+│   ├── syslog/                 # syslog01 — rsyslog centralizado
 │   ├── mysql/                  # mysql01 — MySQL 8.0
 │   ├── dbadmin/                # dbadmin01 — phpMyAdmin
-│   ├── panel/                  # panel01 — Flask+HTMX
+│   ├── panel/                  # panel01 — Panel Flask+HTMX
 │   ├── redes/                  # Redes Docker
-│   └── postdeploy/             # Limpieza reglas Docker
-└── pruebas/
-├── healthcheck.sh          # 49 tests de verificación
-└── test_firewall.sh        # 12 tests de firewall
+│   └── postdeploy/             # Limpieza de reglas Docker raw
+├── pruebas/
+│   ├── healthcheck.sh          # 49 tests de verificación completa
+│   └── test_firewall.sh        # 12 tests de reglas de firewall
+└── docs/
+    └── topologia.svg           # Diagrama de red del laboratorio
+```
 
-## Limitaciones conocidas
+---
 
-- **Bypass de fw01:** Docker crea bridges que permiten al host acceder directamente a todas las redes, saltándose fw01. Esto es una limitación arquitectónica de Docker documentada en la memoria del TFG.
-- **Certificados SSL autofirmados:** Los certificados son autofirmados para entorno de laboratorio. En producción se usarían certificados válidos.
-- **Contraseñas en texto plano:** Las credenciales están en `group_vars/all/main.yml`. En producción se usaría Ansible Vault.
+## Limitaciones conocidas y documentadas
 
-## Autor
+- **Bypass de fw01 desde el host:** Docker crea bridges que permiten al host acceder directamente a todas las redes sin pasar por fw01. Es una limitación estructural de Docker en modo bridge sobre un único host. El firewall controla correctamente el tráfico entre contenedores de distintas zonas.
+- **Certificados SSL autofirmados:** Para entorno de laboratorio. En producción se usarían certificados emitidos por una CA reconocida.
+- **Contraseñas en texto plano:** Las credenciales están en `group_vars/all/main.yml`. En un entorno de producción se usaría Ansible Vault para cifrarlas.
 
-Abel — TFG ASIR 2026  
-Administración de Sistemas Informáticos en Red
+---
+
+## Autores y distribución del trabajo
+
+| Nombre | Rol en el proyecto |
+|---|---|
+| Abel Baños | Arquitectura de red, infraestructura Docker, firewall nftables, Ansible |
+| Daniel Montero | Servicios LAN (SSH, DNS, DHCP, Squid), scripts de prueba y verificación |
+| Amina Sefiani | Servicios DMZ (web01, proxy01), logging centralizado, panel Flask+HTMX |
+
+---
+
+*TFG — Administración de Sistemas Informáticos en Red · 2026*
