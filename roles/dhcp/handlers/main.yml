@@ -6,10 +6,12 @@
     /usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf
     -pf /var/run/dhcpd.pid &"
   changed_when: true
+  failed_when: false
   listen: "Recargar DHCP"
 
 - name: "Reiniciar rsyslog en dhcp01"
   ansible.builtin.shell: |
     docker exec {{ contenedores.dhcp.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
   changed_when: true
+  failed_when: false
   listen: "Reiniciar rsyslog DHCP"

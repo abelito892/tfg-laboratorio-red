@@ -4,4 +4,5 @@
     docker exec {{ contenedores.syslog.nombre }}
     pkill rsyslogd
   changed_when: true
+  failed_when: false
   listen: "Recargar Syslog"

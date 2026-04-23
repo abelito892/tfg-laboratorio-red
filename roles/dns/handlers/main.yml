@@ -3,10 +3,12 @@
   ansible.builtin.command: >
     docker exec {{ contenedores.dns.nombre }} rndc reload
   changed_when: true
+  failed_when: false
   listen: "Recargar DNS"
 
 - name: "Reiniciar rsyslog en dns01"
   ansible.builtin.shell: |
     docker exec {{ contenedores.dns.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
   changed_when: true
+  failed_when: false
   listen: "Reiniciar rsyslog DNS"

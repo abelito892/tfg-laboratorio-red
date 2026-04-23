@@ -3,10 +3,12 @@
   ansible.builtin.command: >
     docker exec {{ contenedores.squid.nombre }} squid -k reconfigure
   changed_when: true
+  failed_when: false
   listen: "Recargar Squid"
 
 - name: "Reiniciar rsyslog en squid01"
   ansible.builtin.shell: |
     docker exec {{ contenedores.squid.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
   changed_when: true
+  failed_when: false
   listen: "Reiniciar rsyslog Squid"

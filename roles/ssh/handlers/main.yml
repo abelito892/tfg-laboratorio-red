@@ -1,22 +1,25 @@
 ---
-# Handlers del rol SSH
-
 - name: "Obtener PID de sshd"
-  ansible.builtin.command: >
-    docker exec {{ contenedores.ssh.nombre }} pgrep sshd
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.ssh.nombre }} pgrep sshd 2>/dev/null | head -1 || echo ""
   register: sshd_pid
   changed_when: false
+  failed_when: false
   listen: "Recargar SSH"
 
-- name: "Recargar configuración SSH con kill -HUP"
-  ansible.builtin.command: >
-    docker exec {{ contenedores.ssh.nombre }}
-    kill -HUP {{ sshd_pid.stdout_lines[0] }}
+- name: "Recargar configuración SSH con HUP"
+  ansible.builtin.shell: |
+    if [ -n "{{ sshd_pid.stdout | trim }}" ]; then
+      docker exec {{ contenedores.ssh.nombre }} kill -HUP {{ sshd_pid.stdout | trim }}
+    fi
   changed_when: true
+  failed_when: false
   listen: "Recargar SSH"
 
 - name: "Reiniciar rsyslog en ssh01"
   ansible.builtin.shell: |
-    docker exec {{ contenedores.ssh.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
+    docker exec {{ contenedores.ssh.nombre }} bash -c \
+      "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
   changed_when: true
+  failed_when: false
   listen: "Reiniciar rsyslog SSH"

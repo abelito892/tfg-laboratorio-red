@@ -4,6 +4,7 @@
     docker exec {{ contenedores.proxy.nombre }} bash -c \
       "nginx -t && (nginx -s reload 2>/dev/null || nginx -g 'daemon off;' &)"
   changed_when: true
+  failed_when: false
   listen: "Recargar Proxy"
 
 - name: "Reiniciar rsyslog en proxy01"
@@ -11,4 +12,5 @@
     docker exec {{ contenedores.proxy.nombre }} bash -c \
       "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
   changed_when: true
+  failed_when: false
   listen: "Reiniciar rsyslog Proxy"

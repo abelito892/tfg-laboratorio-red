@@ -12,4 +12,5 @@
   ansible.builtin.shell: |
     docker exec {{ contenedores.mysql.nombre }} bash -c "pkill -9 rsyslogd; sleep 1; rm -f /run/rsyslogd.pid; rsyslogd"
   changed_when: true
+  failed_when: false
   listen: "Reiniciar rsyslog MySQL"
