@@ -32,7 +32,7 @@
       ansible.builtin.command: groups
       register: grupos_usuario
       changed_when: false
-      failed_when: "'docker' not in grupos_usuario.stdout"
+      failed_when: "'docker' not in grupos_usuario.stdout and 'root' not in grupos_usuario.stdout"
 
     - name: "Verificar espacio en disco disponible (mínimo 2GB)"
       ansible.builtin.shell: >
