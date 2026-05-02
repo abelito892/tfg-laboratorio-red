@@ -97,6 +97,6 @@ imagen_base: "ubuntu:24.04"
 
 # ─── Credenciales MySQL ──────────────────────────────────
 mysql_root_password: "Root_TFG_2026!"
-mysql_rsyslog_user: "rsyslog"
-mysql_rsyslog_password: "Rsyslog_TFG_2026!"
-mysql_database: "Syslog"
+mysql_netcorp_user: "netcorp"
+mysql_netcorp_password: "NetCorp_TFG_2026!"
+mysql_database: "NetCorp"

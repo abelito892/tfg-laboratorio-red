@@ -1,8 +1,4 @@
 ---
-# Rol: web
-# Descripción: Despliega el contenedor web01 con Nginx + SSL en la DMZ
-
-# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
 - name: "Construir imagen Docker del servidor web"
   community.docker.docker_image:
     name: "tfg/web"
@@ -13,18 +9,19 @@
     source: build
     force_source: false
 
-# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
 - name: "Desplegar contenedor web01"
   community.docker.docker_container:
     name: "{{ contenedores.web.nombre }}"
     image: "tfg/web:latest"
     state: started
     restart_policy: unless-stopped
+    env:
+      TZ: "Europe/Madrid"
     networks:
       - name: "{{ redes.dmz.nombre }}"
         ipv4_address: "{{ contenedores.web.ip }}"
 
-- name: "Conectar web01 a la red de gestión con IP fija"
+- name: "Conectar web01 a red de gestion con IP fija"
   ansible.builtin.shell: |
     docker network disconnect mgmt_net {{ contenedores.web.nombre }} 2>/dev/null || true
     docker network connect --ip {{ contenedores.web.ip_mgmt }} mgmt_net {{ contenedores.web.nombre }}
@@ -34,20 +31,27 @@
     - ip_mgmt_result.rc != 0
     - "'already exists' not in ip_mgmt_result.stderr"
 
-# ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
+- name: "Conectar web01 a db_net para acceder a MySQL"
+  ansible.builtin.shell: |
+    docker network disconnect db_net {{ contenedores.web.nombre }} 2>/dev/null || true
+    docker network connect db_net {{ contenedores.web.nombre }}
+  register: db_net_result
+  changed_when: true
+  failed_when:
+    - db_net_result.rc != 0
+    - "'already exists' not in db_net_result.stderr"
+
 - name: "Generar nginx.conf desde plantilla"
   ansible.builtin.template:
     src: nginx.conf.j2
     dest: "/tmp/nginx.conf_{{ contenedores.web.nombre }}"
     mode: '0644'
-  notify: "Recargar Web"
 
 - name: "Copiar nginx.conf al contenedor"
   ansible.builtin.command: >
     docker cp /tmp/nginx.conf_{{ contenedores.web.nombre }}
     {{ contenedores.web.nombre }}:/etc/nginx/sites-available/laboratorio
   changed_when: true
-  notify: "Recargar Web"
 
 - name: "Activar sitio en Nginx"
   ansible.builtin.command: >
@@ -67,29 +71,54 @@
     docker cp {{ role_path }}/files/index.html
     {{ contenedores.web.nombre }}:/var/www/laboratorio/index.html
   changed_when: true
-  notify: "Recargar Web"
 
-- name: "Verificar configuración de Nginx"
+- name: "Crear directorio app en web01"
+  ansible.builtin.command: >
+    docker exec {{ contenedores.web.nombre }} mkdir -p /app
+  changed_when: true
+
+- name: "Copiar FastAPI main.py al contenedor"
+  ansible.builtin.command: >
+    docker cp {{ role_path }}/files/app/main.py
+    {{ contenedores.web.nombre }}:/app/main.py
+  changed_when: true
+
+- name: "Reiniciar web01 para aplicar cambios"
+  community.docker.docker_container:
+    name: "{{ contenedores.web.nombre }}"
+    state: started
+    restart: true
+
+- name: "Esperar a que web01 arranque"
+  ansible.builtin.pause:
+    seconds: 5
+
+- name: "Verificar configuracion de Nginx"
   ansible.builtin.command: >
     docker exec {{ contenedores.web.nombre }} nginx -t
   register: check_nginx
   changed_when: false
 
-# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
-- name: "Configurar envío de logs Web a syslog01"
+- name: "Verificar FastAPI health"
   ansible.builtin.shell: |
-    docker exec {{ contenedores.web.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
-  register: logs_config
-  changed_when: "logs_config.rc == 0"
-  notify: "Reiniciar rsyslog Web"
+    docker exec {{ contenedores.web.nombre }} python3 -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/api/health').read().decode())"
+  register: fastapi_health
+  changed_when: false
+  failed_when: "'ok' not in fastapi_health.stdout"
 
-# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
-- name: "Verificar que el contenedor web01 está activo"
-  ansible.builtin.command: >
-    docker ps --filter name={{ contenedores.web.nombre }}
+- name: "Mostrar estado FastAPI"
+  ansible.builtin.debug:
+    msg: "{{ fastapi_health.stdout }}"
+
+- name: "Verificar estado del contenedor web01"
+  ansible.builtin.command: docker ps --filter name={{ contenedores.web.nombre }}
   register: estado_web
   changed_when: false
 
-- name: "Mostrar estado del contenedor web01"
+- name: "Mostrar estado web01"
   ansible.builtin.debug:
     msg: "{{ estado_web.stdout_lines }}"
+- name: "Reenviar logs de web01 a syslog01 en tiempo real"
+  ansible.builtin.shell: |
+    docker exec -d {{ contenedores.web.nombre }} bash -c       "pgrep -f 'tail.*/var/log/nginx/web01_access.log' || tail -F /var/log/nginx/web01_access.log | while read line; do logger -n 172.22.0.10 -P 514 --udp 'web01: $line'; done &"
+  changed_when: true

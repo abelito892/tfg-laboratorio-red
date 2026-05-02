@@ -1,9 +1,13 @@
 ---
 # Rol: postdeploy
-# Descripción: Elimina las reglas de aislamiento que Docker añade automáticamente
-#              en la tabla raw para permitir tráfico entre lan_net y dmz_net
+# Descripción: Elimina reglas de aislamiento entre lan_net y dmz_net
+#              Solo necesario en Linux — en Windows/Docker Desktop no aplica
 
-# ─── OBTENER IDs DE REDES DOCKER ─────────────────────────────────────────────
+- name: "Detectar sistema operativo del host"
+  ansible.builtin.shell: uname -s
+  register: host_os
+  changed_when: false
+
 - name: "Obtener ID de lan_net"
   ansible.builtin.shell: docker network inspect lan_net --format '{% raw %}{{.Id}}{% endraw %}' | cut -c1-12
   register: lan_id
@@ -14,7 +18,6 @@
   register: dmz_id
   changed_when: false
 
-# ─── ELIMINAR REGLAS RAW QUE BLOQUEAN TRÁFICO ENTRE REDES ───────────────────
 - name: "Eliminar reglas raw que bloquean tráfico hacia DMZ desde LAN"
   ansible.builtin.shell: |
     for handle in $(nft -a list chain ip raw PREROUTING 2>/dev/null | \
@@ -24,6 +27,7 @@
   become: true
   changed_when: true
   ignore_errors: true
+  when: host_os.stdout == "Linux"
 
 - name: "Eliminar reglas raw que bloquean tráfico de retorno hacia LAN"
   ansible.builtin.shell: |
@@ -34,16 +38,58 @@
   become: true
   changed_when: true
   ignore_errors: true
+  when: host_os.stdout == "Linux"
 
-# ─── VERIFICACIÓN ─────────────────────────────────────────────────────────────
-- name: "Verificar reglas restantes entre LAN y DMZ"
+- name: "Verificar reglas restantes entre LAN y DMZ (solo Linux)"
   ansible.builtin.shell: >
     nft list chain ip raw PREROUTING 2>/dev/null |
     grep -E "br-{{ lan_id.stdout }}|br-{{ dmz_id.stdout }}" | wc -l
   register: reglas_restantes
   changed_when: false
   become: true
+  ignore_errors: true
+  when: host_os.stdout == "Linux"
 
 - name: "Mostrar reglas restantes"
   ansible.builtin.debug:
-    msg: "Reglas de aislamiento restantes: {{ reglas_restantes.stdout }}"
+    msg: "Reglas de aislamiento restantes: {{ reglas_restantes.stdout | default('N/A - Windows/Docker Desktop') }}"
+
+- name: "Verificar y relanzar reenvío de logs en proxy01"
+  ansible.builtin.shell: |
+    docker exec proxy01 bash -c '
+      pgrep -f "tail.*nginx/access.log" >/dev/null && echo "ya corriendo" && exit 0
+      nohup bash -c "tail -F -n0 /var/log/nginx/access.log | while IFS= read -r line; do logger -n 172.22.0.10 -P 514 --udp \"proxy01: \$line\"; done" >/dev/null 2>&1 &
+      echo "relanzado"
+    '
+  register: proxy_log
+  changed_when: "'relanzado' in proxy_log.stdout"
+  ignore_errors: true
+
+- name: "Verificar y relanzar reenvío de logs en web01"
+  ansible.builtin.shell: |
+    docker exec web01 bash -c '
+      pgrep -f "tail.*nginx/access.log" >/dev/null && echo "ya corriendo" && exit 0
+      nohup bash -c "tail -F -n0 /var/log/nginx/access.log | while IFS= read -r line; do logger -n 172.22.0.10 -P 514 --udp \"web01: \$line\"; done" >/dev/null 2>&1 &
+      echo "relanzado"
+    '
+  register: web_log
+  changed_when: "'relanzado' in web_log.stdout"
+  ignore_errors: true
+
+- name: "Verificar y relanzar reenvío de logs en squid01"
+  ansible.builtin.shell: |
+    docker exec squid01 bash -c '
+      pgrep -f "tail.*squid/access.log" >/dev/null && echo "ya corriendo" && exit 0
+      nohup bash -c "tail -F -n0 /var/log/squid/access.log | while IFS= read -r line; do logger -n 172.22.0.10 -P 514 --udp \"squid01: \$line\"; done" >/dev/null 2>&1 &
+      echo "relanzado"
+    '
+  register: squid_log
+  changed_when: "'relanzado' in squid_log.stdout"
+  ignore_errors: true
+
+- name: "Estado reenvío de logs"
+  ansible.builtin.debug:
+    msg:
+      - "proxy01 logs: {{ proxy_log.stdout | default('error') }}"
+      - "web01   logs: {{ web_log.stdout   | default('error') }}"
+      - "squid01 logs: {{ squid_log.stdout | default('error') }}"

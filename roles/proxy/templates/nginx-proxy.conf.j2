@@ -4,14 +4,14 @@
 # Redirigir HTTP → HTTPS
 server {
     listen 80;
-    server_name proxy01.laboratorio.local;
+    server_name proxy01.laboratorio.local intranet.netcorp.local www.netcorp.local mail.netcorp.local;
     return 301 https://$host$request_uri;
 }
 
 # Proxy inverso HTTPS
 server {
     listen 443 ssl;
-    server_name proxy01.laboratorio.local;
+    server_name proxy01.laboratorio.local intranet.netcorp.local www.netcorp.local mail.netcorp.local;
 
     ssl_certificate     /etc/ssl/certs/proxy.crt;
     ssl_certificate_key /etc/ssl/private/proxy.key;

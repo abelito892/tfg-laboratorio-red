@@ -3,150 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>web01 — Servidor Web TFG ASIR</title>
+    <title>NetCorp S.L. — Intranet Corporativa</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-            min-height: 100vh;
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; color: #1a202c; }
+
+        /* ── HEADER ── */
+        header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5986 100%);
+            color: white;
+            padding: 0 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .header-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            height: 70px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            padding: 2rem;
+            justify-content: space-between;
         }
+        .brand { display: flex; align-items: center; gap: 1rem; }
+        .brand-icon {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: 900; letter-spacing: -1px;
+        }
+        .brand h1 { font-size: 1.25rem; font-weight: 700; }
+        .brand p { font-size: 0.75rem; opacity: 0.7; margin-top: 1px; }
+        .header-right { display: flex; align-items: center; gap: 1.25rem; font-size: 0.85rem; }
+        #reloj { font-family: monospace; font-size: 1rem; opacity: 0.9; }
+        .badge-activo {
+            background: #10b981; color: white;
+            padding: 0.25rem 0.75rem; border-radius: 99px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+
+        /* ── LAYOUT ── */
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+        /* ── STATS ── */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card {
+            background: white; border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            border-left: 4px solid #3b82f6;
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .stat-icon { font-size: 1.75rem; }
+        .stat-value { font-size: 2rem; font-weight: 700; color: #1e3a5f; line-height: 1; }
+        .stat-label { font-size: 0.8rem; color: #64748b; margin-top: 3px; }
+
+        /* ── GRID DOS COLUMNAS ── */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: 1fr; } }
+
+        /* ── CARDS ── */
         .card {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            padding: 3rem;
-            max-width: 700px;
-            width: 100%;
-            color: white;
+            background: white; border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            overflow: hidden;
         }
-        .badge {
-            display: inline-block;
-            background: #10b981;
-            color: white;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            letter-spacing: 0.05em;
-            margin-bottom: 1.5rem;
+        .card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between;
         }
-        h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: #34d399;
+        .card-header h2 { font-size: 0.95rem; font-weight: 600; color: #1e3a5f; }
+        .card-body { padding: 0; }
+
+        /* ── TABLAS ── */
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        thead tr { background: #f8fafc; }
+        th { padding: 0.6rem 1rem; text-align: left; font-size: 0.72rem; text-transform: uppercase;
+             letter-spacing: 0.05em; color: #64748b; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 0.6rem 1rem; border-bottom: 1px solid #f1f5f9; color: #374151; }
+        tbody tr:hover { background: #f8fafc; }
+        tbody tr:last-child td { border-bottom: none; }
+
+        /* ── ESTADO ── */
+        .chip {
+            display: inline-block; padding: 0.15rem 0.5rem;
+            border-radius: 99px; font-size: 0.7rem; font-weight: 600;
         }
-        .subtitle {
-            color: rgba(255,255,255,0.6);
-            font-size: 0.95rem;
-            margin-bottom: 2rem;
+        .chip-ok { background: #d1fae5; color: #065f46; }
+        .chip-err { background: #fee2e2; color: #991b1b; }
+        .dept-chip {
+            display: inline-block; padding: 0.15rem 0.5rem;
+            border-radius: 4px; font-size: 0.7rem; font-weight: 500;
         }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 2rem;
+        .dept-IT      { background: #dbeafe; color: #1e40af; }
+        .dept-Comercial { background: #fef3c7; color: #92400e; }
+        .dept-RRHH    { background: #fce7f3; color: #9d174d; }
+        .dept-Administracion { background: #e0e7ff; color: #3730a3; }
+
+        /* ── LOADING / ERROR ── */
+        .loading { padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.85rem; }
+        .error   { padding: 1rem; text-align: center; color: #ef4444; font-size: 0.85rem; }
+
+        /* ── FOOTER ── */
+        footer {
+            background: #1e3a5f; color: rgba(255,255,255,0.5);
+            text-align: center; padding: 1rem;
+            font-size: 0.75rem; margin-top: 1.5rem;
         }
-        .info-item {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 8px;
-            padding: 1rem;
-        }
-        .info-label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: rgba(255,255,255,0.4);
-            margin-bottom: 0.25rem;
-        }
-        .info-value {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #34d399;
-            font-family: monospace;
-        }
-        .divider {
-            border: none;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            margin: 1.5rem 0;
-        }
-        .ssl-badge {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.5);
-        }
-        .ssl-badge span { color: #34d399; font-weight: 600; }
-        .footer {
-            margin-top: 2rem;
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.3);
-            text-align: center;
-        }
-        .dmz-tag {
-            display: inline-block;
-            background: rgba(239,68,68,0.2);
-            border: 1px solid rgba(239,68,68,0.4);
-            color: #fca5a5;
-            font-size: 0.75rem;
-            padding: 0.2rem 0.6rem;
-            border-radius: 4px;
-            margin-left: 0.5rem;
-            font-family: monospace;
-        }
+        footer span { color: rgba(255,255,255,0.8); }
+
+        /* ── SCROLLABLE TABLE ── */
+        .table-scroll { max-height: 380px; overflow-y: auto; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="badge">✅ SERVIDOR ACTIVO</div>
-        <h1>web01 <span class="dmz-tag">DMZ</span></h1>
-        <p class="subtitle">Servidor web Nginx con SSL — Laboratorio de Red TFG ASIR</p>
 
-        <div class="info-grid">
-            <div class="info-item">
-                <div class="info-label">Dirección IP</div>
-                <div class="info-value">172.21.0.20</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Zona de red</div>
-                <div class="info-value">DMZ</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Servicio</div>
-                <div class="info-value">Nginx + SSL</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Puerto</div>
-                <div class="info-value">443 (HTTPS)</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Acceso desde LAN</div>
-                <div class="info-value">via proxy01</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Certificado</div>
-                <div class="info-value">Self-signed</div>
+<header>
+    <div class="header-inner">
+        <div class="brand">
+            <div class="brand-icon">NC</div>
+            <div>
+                <h1>NetCorp S.L.</h1>
+                <p>Portal de Intranet Corporativa</p>
             </div>
         </div>
-
-        <hr class="divider">
-
-        <div class="ssl-badge">
-            🔒 Conexión cifrada — <span>TLS/SSL activo</span>
-            &nbsp;·&nbsp; Certificado autofirmado para entorno de laboratorio
-        </div>
-
-        <div class="footer">
-            TFG — Administración de Sistemas Informáticos en Red · 2026
+        <div class="header-right">
+            <span id="reloj"></span>
+            <span class="badge-activo">🟢 Sistema operativo</span>
         </div>
     </div>
+</header>
+
+<div class="container">
+
+    <!-- STATS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div>
+                <div class="stat-value" id="stat-empleados">—</div>
+                <div class="stat-label">Empleados activos</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-color:#8b5cf6">
+            <div class="stat-icon">🏛️</div>
+            <div>
+                <div class="stat-value" id="stat-departamentos">—</div>
+                <div class="stat-label">Departamentos</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-color:#10b981">
+            <div class="stat-icon">🔐</div>
+            <div>
+                <div class="stat-value" id="stat-accesos">—</div>
+                <div class="stat-label">Accesos registrados</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOS COLUMNAS -->
+    <div class="grid-2">
+
+        <!-- DIRECTORIO DE EMPLEADOS -->
+        <div class="card">
+            <div class="card-header">
+                <h2>👥 Directorio de empleados</h2>
+                <span id="empleados-count" style="font-size:0.75rem;color:#94a3b8"></span>
+            </div>
+            <div class="card-body">
+                <div class="table-scroll">
+                    <div id="empleados-container" class="loading">Cargando directorio...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ÚLTIMOS ACCESOS -->
+        <div class="card">
+            <div class="card-header">
+                <h2>🔐 Últimos accesos al sistema</h2>
+                <span style="font-size:0.72rem;color:#94a3b8">Actualización: 30s</span>
+            </div>
+            <div class="card-body">
+                <div class="table-scroll">
+                    <div id="accesos-container" class="loading">Cargando accesos...</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<footer>
+    <p>
+        <span>NetCorp S.L.</span> — Intranet Corporativa &nbsp;·&nbsp;
+        Servidor: <span>web01.netcorp.local</span> (DMZ 172.21.0.20) &nbsp;·&nbsp;
+        TFG ASIR — IES Francisco de Quevedo 2026
+    </p>
+</footer>
+
+<script>
+    const DEPT_CLASSES = {
+        'IT': 'dept-IT',
+        'Comercial': 'dept-Comercial',
+        'RRHH': 'dept-RRHH',
+        'Administracion': 'dept-Administracion'
+    };
+
+    async function loadStats() {
+        try {
+            const r = await fetch('/api/stats');
+            const d = await r.json();
+            document.getElementById('stat-empleados').textContent = d.empleados;
+            document.getElementById('stat-departamentos').textContent = d.departamentos;
+            document.getElementById('stat-accesos').textContent = d.accesos;
+        } catch(e) {}
+    }
+
+    async function loadEmpleados() {
+        const cont = document.getElementById('empleados-container');
+        try {
+            const r = await fetch('/api/empleados');
+            const d = await r.json();
+            if (!d.empleados || d.empleados.length === 0) {
+                cont.innerHTML = '<p class="loading">Sin empleados registrados</p>';
+                return;
+            }
+            document.getElementById('empleados-count').textContent = d.total + ' activos';
+            const rows = d.empleados.map(e => {
+                const dc = DEPT_CLASSES[e.departamento] || '';
+                return `<tr>
+                    <td><strong>${e.nombre} ${e.apellidos}</strong><br><span style="color:#94a3b8;font-size:0.75rem">${e.email}</span></td>
+                    <td><span class="dept-chip ${dc}">${e.departamento}</span></td>
+                    <td>${e.puesto || '—'}</td>
+                </tr>`;
+            }).join('');
+            cont.innerHTML = `<table>
+                <thead><tr><th>Empleado</th><th>Dpto.</th><th>Puesto</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        } catch(e) {
+            cont.innerHTML = '<p class="error">Error al conectar con la API</p>';
+        }
+    }
+
+    async function loadAccesos() {
+        const cont = document.getElementById('accesos-container');
+        try {
+            const r = await fetch('/api/accesos');
+            const d = await r.json();
+            if (!d.accesos || d.accesos.length === 0) {
+                cont.innerHTML = '<p class="loading">Sin accesos registrados</p>';
+                return;
+            }
+            const rows = d.accesos.slice(0, 15).map(a => {
+                const chipClass = a.resultado === 'OK' ? 'chip-ok' : 'chip-err';
+                const ts = a.timestamp ? a.timestamp.substring(5, 16) : '—';
+                return `<tr>
+                    <td style="font-family:monospace;font-size:0.78rem">${a.ip_origen}</td>
+                    <td>${a.servicio}</td>
+                    <td style="color:#64748b;font-size:0.78rem">${a.accion}</td>
+                    <td><span class="chip ${chipClass}">${a.resultado}</span></td>
+                    <td style="font-size:0.75rem;color:#94a3b8">${ts}</td>
+                </tr>`;
+            }).join('');
+            cont.innerHTML = `<table>
+                <thead><tr><th>IP Origen</th><th>Servicio</th><th>Acción</th><th>Estado</th><th>Hora</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        } catch(e) {
+            cont.innerHTML = '<p class="error">Error al conectar con la API</p>';
+        }
+    }
+
+    function actualizarReloj() {
+        document.getElementById('reloj').textContent =
+            new Date().toLocaleTimeString('es-ES');
+    }
+
+    // Init
+    loadStats();
+    loadEmpleados();
+    loadAccesos();
+    actualizarReloj();
+    setInterval(actualizarReloj, 1000);
+    setInterval(() => { loadStats(); loadAccesos(); }, 30000);
+</script>
 </body>
 </html>

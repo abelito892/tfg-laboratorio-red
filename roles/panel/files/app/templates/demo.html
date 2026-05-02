@@ -45,8 +45,8 @@
 <section class="card" id="esc-web">
     <div class="card-header">
         <div>
-            <h2>🌐 Escenario 3 — Navegación web via Squid</h2>
-            <p class="demo-desc">client01 navega a internet usando squid01 como proxy de salida</p>
+            <h2>🏢 Escenario 3 — Flujo completo NetCorp</h2>
+            <p class="demo-desc">client01 obtiene IP, resuelve DNS, accede a la intranet via Squid y el acceso queda registrado en MySQL</p>
         </div>
         <button class="btn btn-primary"
                 hx-post="/api/demo/navegacion"
@@ -113,8 +113,8 @@
 <section class="card" id="esc-mysql">
     <div class="card-header">
         <div>
-            <h2>🗄️ Escenario 7 — Logs en MySQL en tiempo real</h2>
-            <p class="demo-desc">Consulta los eventos registrados durante esta sesión de demo</p>
+            <h2>🗄️ Escenario 7 — Base de datos NetCorp en tiempo real</h2>
+            <p class="demo-desc">Consulta empleados, accesos por departamento y últimos eventos registrados en la BD</p>
         </div>
         <button class="btn btn-primary"
                 hx-get="/api/demo/mysql_demo"
@@ -142,11 +142,7 @@
             <span class="acceso-nombre">Proxy inverso</span>
             <span class="acceso-url">172.21.0.10</span>
         </a>
-        <a href="https://172.21.0.20" target="_blank" class="acceso-card">
-            <span class="acceso-icon">🌐</span>
-            <span class="acceso-nombre">Web01 directo</span>
-            <span class="acceso-url">172.21.0.20</span>
-        </a>
+
         <a href="/" class="acceso-card">
             <span class="acceso-icon">📊</span>
             <span class="acceso-nombre">Panel principal</span>

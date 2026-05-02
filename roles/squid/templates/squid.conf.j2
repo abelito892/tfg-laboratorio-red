@@ -30,3 +30,11 @@ cache_log  stdio:/var/log/squid/cache.log
 visible_hostname {{ contenedores.squid.nombre }}.{{ dns_dominio }}
 forwarded_for off
 refresh_pattern . 0 20% 4320
+
+# ─── DNS ─────────────────────────────────────────────────
+# Usar dns01 para resolver nombres corporativos netcorp.local
+dns_nameservers {{ contenedores.dns.ip }}
+
+# Flush logs inmediatamente
+buffered_logs off
+logfile_rotate 0

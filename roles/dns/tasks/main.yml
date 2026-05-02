@@ -20,6 +20,8 @@
     image: "tfg/dns:latest"
     state: started
     restart_policy: unless-stopped
+    env:
+      TZ: "Europe/Madrid"
     networks:
       - name: "{{ redes.lan.nombre }}"
         ipv4_address: "{{ contenedores.dns.ip }}"
@@ -53,6 +55,13 @@
   ansible.builtin.command: >
     docker cp {{ role_path }}/files/db.laboratorio.local
     {{ contenedores.dns.nombre }}:/etc/bind/db.laboratorio.local
+  changed_when: true
+  notify: "Recargar DNS"
+
+- name: "Copiar zona netcorp.local al contenedor"
+  ansible.builtin.command: >
+    docker cp {{ role_path }}/files/db.netcorp.local
+    {{ contenedores.dns.nombre }}:/etc/bind/db.netcorp.local
   changed_when: true
   notify: "Recargar DNS"
 

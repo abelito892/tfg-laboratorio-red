@@ -1,9 +1,5 @@
 ---
-# Rol: mysql
-# Descripción: Despliega mysql01 como backend de persistencia de logs
-
-# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
-- name: "Construir imagen Docker de MySQL + rsyslog"
+- name: "Construir imagen Docker de MySQL"
   community.docker.docker_image:
     name: "tfg/mysql"
     tag: "latest"
@@ -13,7 +9,6 @@
     source: build
     force_source: false
 
-# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
 - name: "Desplegar contenedor mysql01"
   community.docker.docker_container:
     name: "{{ contenedores.mysql.nombre }}"
@@ -22,14 +17,13 @@
     restart_policy: unless-stopped
     env:
       MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
-      MYSQL_DATABASE: "{{ mysql_database }}"
-      MYSQL_USER: "{{ mysql_rsyslog_user }}"
-      MYSQL_PASSWORD: "{{ mysql_rsyslog_password }}"
+      MYSQL_DATABASE: "NetCorp"
+      TZ: "Europe/Madrid"
     networks:
       - name: "{{ redes.db.nombre }}"
         ipv4_address: "{{ contenedores.mysql.ip }}"
 
-- name: "Conectar mysql01 a la red de gestión con IP fija"
+- name: "Conectar mysql01 a la red de gestion con IP fija"
   ansible.builtin.shell: |
     docker network disconnect mgmt_net {{ contenedores.mysql.nombre }} 2>/dev/null || true
     docker network connect --ip {{ contenedores.mysql.ip_mgmt }} mgmt_net {{ contenedores.mysql.nombre }}
@@ -39,20 +33,11 @@
     - ip_mgmt_result.rc != 0
     - "'already exists' not in ip_mgmt_result.stderr"
 
-# ─── COPIAR SCHEMA INICIAL ───────────────────────────────────────────────────
-- name: "Copiar init.sql al contenedor"
-  ansible.builtin.command: >
-    docker cp {{ role_path }}/files/init.sql
-    {{ contenedores.mysql.nombre }}:/docker-entrypoint-initdb.d/init.sql
-  changed_when: true
-
-# ─── ESPERAR A QUE MYSQL ESTÉ COMPLETAMENTE LISTO ───────────────────────────
-# Esperamos hasta que root pueda autenticarse (no solo que mysqld responda)
-- name: "Esperar a que MySQL esté completamente inicializado (máximo 90s)"
+- name: "Esperar a que MySQL este completamente inicializado (maximo 90s)"
   ansible.builtin.shell: |
     for i in $(seq 1 45); do
       result=$(docker exec {{ contenedores.mysql.nombre }} bash -c \
-        'mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1;" 2>&1')
+        'mysql -uroot -p"{{ mysql_root_password }}" -e "SELECT 1;" 2>&1')
       if echo "$result" | grep -q "^1$"; then
         echo "MySQL listo tras ${i} intentos"
         exit 0
@@ -64,48 +49,41 @@
   register: mysql_ready
   changed_when: false
 
-# ─── APLICAR SCHEMA ──────────────────────────────────────────────────────────
-- name: "Aplicar schema de rsyslog en la base de datos"
+- name: "Aplicar schema NetCorp si no existe"
   ansible.builtin.shell: |
+    existe=$(docker exec {{ contenedores.mysql.nombre }} bash -c \
+      'mysql -uroot -p"{{ mysql_root_password }}" -e "SHOW DATABASES LIKE \"NetCorp\";" 2>/dev/null')
+    if echo "$existe" | grep -q "NetCorp"; then
+      tablas=$(docker exec {{ contenedores.mysql.nombre }} bash -c \
+        'mysql -uroot -p"{{ mysql_root_password }}" NetCorp -e "SHOW TABLES;" 2>/dev/null')
+      if echo "$tablas" | grep -q "empleados"; then
+        echo "Schema ya existe, nada que hacer"
+        exit 0
+      fi
+    fi
     docker exec -i {{ contenedores.mysql.nombre }} bash -c \
-      'mysql -u root -p"$MYSQL_ROOT_PASSWORD"' < {{ role_path }}/files/init.sql
+      'mysql -uroot -p"{{ mysql_root_password }}"' < {{ role_path }}/files/init.sql
+    echo "Schema aplicado"
   register: schema_result
-  changed_when: schema_result.rc == 0
-  failed_when: false
+  changed_when: "'Schema aplicado' in schema_result.stdout"
 
-# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
-- name: "Configurar envío de logs MySQL a syslog01"
+- name: "Verificar empleados cargados"
   ansible.builtin.shell: |
     docker exec {{ contenedores.mysql.nombre }} bash -c \
-      "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || \
-       echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
-  register: logs_config
-  changed_when: "logs_config.rc == 0"
-  notify: "Reiniciar rsyslog MySQL"
-
-# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
-- name: "Verificar que la base de datos Syslog existe"
-  ansible.builtin.shell: |
-    docker exec {{ contenedores.mysql.nombre }} bash -c \
-      'mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES LIKE \"Syslog\";" 2>/dev/null'
-  register: db_check
-  changed_when: false
-  failed_when: "'Syslog' not in db_check.stdout"
-
-- name: "Verificar que la tabla SystemEvents existe"
-  ansible.builtin.shell: |
-    docker exec {{ contenedores.mysql.nombre }} bash -c \
-      'mysql -u root -p"$MYSQL_ROOT_PASSWORD" Syslog -e "SHOW TABLES LIKE \"SystemEvents\";" 2>/dev/null'
+      'mysql -uroot -p"{{ mysql_root_password }}" NetCorp -e "SELECT COUNT(*) FROM empleados;" 2>/dev/null'
   register: table_check
   changed_when: false
-  failed_when: "'SystemEvents' not in table_check.stdout"
+  failed_when: table_check.rc != 0
 
-- name: "Verificar que el contenedor mysql01 está activo"
-  ansible.builtin.command: >
-    docker ps --filter name={{ contenedores.mysql.nombre }}
+- name: "Mostrar numero de empleados"
+  ansible.builtin.debug:
+    msg: "Empleados en NetCorp: {{ table_check.stdout_lines }}"
+
+- name: "Verificar estado del contenedor mysql01"
+  ansible.builtin.command: docker ps --filter name={{ contenedores.mysql.nombre }}
   register: estado_mysql
   changed_when: false
 
-- name: "Mostrar estado del contenedor mysql01"
+- name: "Mostrar estado mysql01"
   ansible.builtin.debug:
     msg: "{{ estado_mysql.stdout_lines }}"

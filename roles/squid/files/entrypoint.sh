@@ -1,12 +1,10 @@
 #!/bin/bash
-# Entrypoint squid01 — espera syslog01, arranca rsyslog + squid
-
-echo "Esperando a syslog01 (172.22.0.10)..."
-until bash -c "cat < /dev/null > /dev/tcp/172.22.0.10/514" 2>/dev/null; do
-    sleep 2
-done
-rsyslogd
-sleep 1
-
 rm -f /run/squid.pid
+
+echo "Iniciando reenvio de logs squid a syslog01..."
+tail -F -n0 /var/log/squid/access.log | while IFS= read -r line; do
+  logger -n 172.22.0.10 -P 514 --udp "squid01: $line"
+done &
+disown
+
 exec squid -NYCd 1

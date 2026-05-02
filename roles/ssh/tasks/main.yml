@@ -20,6 +20,10 @@
     image: "tfg/ssh:latest"
     state: started
     restart_policy: unless-stopped
+    env:
+      TZ: "Europe/Madrid"
+    ports:
+      - "2222:22"
     networks:
       - name: "{{ redes.lan.nombre }}"
         ipv4_address: "{{ contenedores.ssh.ip }}"

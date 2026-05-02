@@ -1,8 +1,4 @@
 ---
-# Rol: squid
-# Descripción: Despliega squid01 como proxy de salida en la LAN
-
-# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
 - name: "Construir imagen Docker del proxy Squid"
   community.docker.docker_image:
     name: "tfg/squid"
@@ -13,18 +9,21 @@
     source: build
     force_source: false
 
-# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
 - name: "Desplegar contenedor squid01"
   community.docker.docker_container:
     name: "{{ contenedores.squid.nombre }}"
     image: "tfg/squid:latest"
     state: started
     restart_policy: unless-stopped
+    env:
+      TZ: "Europe/Madrid"
+    capabilities:
+      - NET_ADMIN
     networks:
       - name: "{{ redes.lan.nombre }}"
         ipv4_address: "{{ contenedores.squid.ip }}"
 
-- name: "Conectar squid01 a la red de gestión con IP fija"
+- name: "Conectar squid01 a la red de gestion con IP fija"
   ansible.builtin.shell: |
     docker network disconnect mgmt_net {{ contenedores.squid.nombre }} 2>/dev/null || true
     docker network connect --ip {{ contenedores.squid.ip_mgmt }} mgmt_net {{ contenedores.squid.nombre }}
@@ -34,7 +33,14 @@
     - ip_mgmt_result.rc != 0
     - "'already exists' not in ip_mgmt_result.stderr"
 
-# ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
+- name: "Anadir ruta hacia DMZ via fw01"
+  ansible.builtin.shell: |
+    docker exec {{ contenedores.squid.nombre }} \
+      ip route replace 172.21.0.0/24 via {{ contenedores.firewall.ip_lan }}
+  register: ruta_dmz
+  changed_when: ruta_dmz.rc == 0
+  failed_when: ruta_dmz.rc != 0 and 'exists' not in ruta_dmz.stderr
+
 - name: "Generar squid.conf desde plantilla"
   ansible.builtin.template:
     src: squid.conf.j2
@@ -49,22 +55,13 @@
   changed_when: true
   notify: "Recargar Squid"
 
-- name: "Verificar configuración de Squid"
+- name: "Verificar configuracion de Squid"
   ansible.builtin.command: >
     docker exec {{ contenedores.squid.nombre }} squid -k parse
   register: check_squid
   changed_when: false
 
-# ─── CONFIGURACIÓN DE LOGS ───────────────────────────────────────────────────
-- name: "Configurar envío de logs Squid a syslog01"
-  ansible.builtin.shell: |
-    docker exec {{ contenedores.squid.nombre }} bash -c "grep -q '@{{ contenedores.syslog.ip }}:514' /etc/rsyslog.conf || echo '*.* @{{ contenedores.syslog.ip }}:514' >> /etc/rsyslog.conf"
-  register: logs_config
-  changed_when: "logs_config.rc == 0"
-  notify: "Reiniciar rsyslog Squid"
-
-# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
-- name: "Verificar que el contenedor squid01 está activo"
+- name: "Verificar que el contenedor squid01 esta activo"
   ansible.builtin.command: >
     docker ps --filter name={{ contenedores.squid.nombre }}
   register: estado_squid
@@ -73,3 +70,7 @@
 - name: "Mostrar estado del contenedor squid01"
   ansible.builtin.debug:
     msg: "{{ estado_squid.stdout_lines }}"
+- name: "Reenviar logs de squid01 a syslog01 en tiempo real"
+  ansible.builtin.shell: |
+    docker exec -d {{ contenedores.squid.nombre }} bash -c       "pgrep -f 'tail.*/var/log/squid/access.log' || tail -F /var/log/squid/access.log | while read line; do logger -n 172.22.0.10 -P 514 --udp 'squid01: $line'; done &"
+  changed_when: true

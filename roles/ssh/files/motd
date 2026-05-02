@@ -1,0 +1,14 @@
+
+╔══════════════════════════════════════════════════════════════╗
+║          NetCorp S.L. — Servidor SSH Corporativo             ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║   Servidor  :  ssh01.laboratorio.local                       ║
+║   Red       :  LAN Corporativa  (192.168.100.0/24)          ║
+║   Gestión   :  Dpto. IT — abel.banos@netcorp.local           ║
+║                                                              ║
+║   ⚠  Acceso restringido a personal autorizado               ║
+║   ⚠  Todos los accesos quedan registrados en syslog01        ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+

@@ -163,44 +163,172 @@
     </div>
 </section>
 
-<!-- ═══ MYSQL ════════════════════════════════════════════════════════════ -->
-<section class="card" id="mysql">
+
+<!-- ═══ NETCORP — EMPLEADOS Y ACCESOS ════════════════════════════════════ -->
+<section class="card" id="netcorp">
     <div class="card-header">
-        <h2>🗄️ Base de Datos MySQL — SystemEvents</h2>
-    </div>
-    <div class="mysql-buttons">
-        <button class="btn btn-primary"
-                hx-get="/api/mysql/total_por_host"
-                hx-target="#resultado-mysql"
+        <h2>🏢 NetCorp — Panel Corporativo</h2>
+        <button class="btn btn-secondary"
+                hx-get="/api/netcorp/stats"
+                hx-target="#netcorp-stats"
                 hx-swap="innerHTML">
-            📊 Logs por host
-        </button>
-        <button class="btn btn-primary"
-                hx-get="/api/mysql/ultimos_eventos"
-                hx-target="#resultado-mysql"
-                hx-swap="innerHTML">
-            🕐 Últimos 20 eventos
-        </button>
-        <button class="btn btn-primary"
-                hx-get="/api/mysql/por_severidad"
-                hx-target="#resultado-mysql"
-                hx-swap="innerHTML">
-            ⚠️ Por severidad
-        </button>
-        <button class="btn btn-primary"
-                hx-get="/api/mysql/ultimas_24h"
-                hx-target="#resultado-mysql"
-                hx-swap="innerHTML">
-            📈 Actividad 24h
+            🔄 Actualizar
         </button>
     </div>
-    <div id="resultado-mysql"
-         hx-get="/api/mysql/total_por_host"
-         hx-trigger="load"
+
+    <!-- Stats resumen -->
+    <div id="netcorp-stats"
+         hx-get="/api/netcorp/stats"
+         hx-trigger="load, every 30s"
          hx-swap="innerHTML">
-        <div class="loading-placeholder">Cargando datos MySQL...</div>
+        <div class="loading-placeholder">Cargando estadisticas...</div>
+    </div>
+
+    <!-- Tabs empleados / accesos -->
+    <div style="margin-top:1.5rem">
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+            <button class="btn btn-primary"
+                    hx-get="/api/netcorp/empleados"
+                    hx-target="#netcorp-content"
+                    hx-swap="innerHTML">
+                👥 Empleados
+            </button>
+            <button class="btn btn-primary"
+                    hx-get="/api/netcorp/accesos"
+                    hx-target="#netcorp-content"
+                    hx-swap="innerHTML">
+                🔐 Accesos recientes
+            </button>
+            <button class="btn btn-secondary" onclick="mostrarFormAlta()">
+                ➕ Alta empleado
+            </button>
+        </div>
+
+        <!-- Formulario alta empleado -->
+        <div id="form-empleado" style="display:none;background:var(--bg-secondary);padding:1rem;border-radius:8px;margin-bottom:1rem">
+            <h3 style="margin-bottom:1rem">Nuevo empleado NetCorp</h3>
+            <form hx-post="/api/netcorp/empleados/nuevo"
+                  hx-target="#netcorp-content"
+                  hx-swap="innerHTML"
+                  style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                <input type="text" name="nombre" placeholder="Nombre" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <input type="text" name="apellidos" placeholder="Apellidos" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <input type="email" name="email" placeholder="email@netcorp.local" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <input type="text" name="usuario" placeholder="usuario" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <input type="text" name="puesto" placeholder="Puesto" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <select name="departamento_id" required
+                        style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                    <option value="">Departamento...</option>
+                    <option value="1">IT</option>
+                    <option value="2">Comercial</option>
+                    <option value="3">RRHH</option>
+                    <option value="4">Administracion</option>
+                </select>
+                <button type="submit" class="btn btn-primary" style="grid-column:span 2">
+                    ✅ Dar de alta
+                </button>
+            </form>
+        </div>
+
+        <!-- Contenido empleados/accesos -->
+        <div id="netcorp-content"
+             hx-get="/api/netcorp/empleados"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <div class="loading-placeholder">Cargando empleados...</div>
+        </div>
     </div>
 </section>
+
+
+<!-- ═══ TERMINAL INTERACTIVA ════════════════════════════════════════════ -->
+<section class="card" id="terminal">
+    <div class="card-header">
+        <h2>💻 Terminal Interactiva</h2>
+        <button class="btn btn-secondary" onclick="limpiarTerminal()">🗑️ Limpiar</button>
+    </div>
+    <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:0.75rem">
+        Ejecuta comandos en cualquier contenedor del laboratorio en tiempo real.
+    </p>
+
+    <!-- Comandos rápidos -->
+    <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem">
+        <span style="font-size:0.8rem;color:var(--text-secondary);align-self:center">Ejemplos:</span>
+        <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:0.2rem 0.5rem;font-family:monospace"
+                onclick="setComando('client01','ping -c4 192.168.100.20')">ping dns01</button>
+        <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:0.2rem 0.5rem;font-family:monospace"
+                onclick="setComando('client01','nslookup intranet.netcorp.local 192.168.100.20')">nslookup intranet</button>
+        <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:0.2rem 0.5rem;font-family:monospace"
+                onclick="setComando('client01','ip addr show eth0')">ip addr (client)</button>
+        <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:0.2rem 0.5rem;font-family:monospace"
+                onclick="setComando('client01','curl -sk -o/dev/null -w &quot;%{http_code}&quot; https://172.21.0.10')">HTTP proxy01</button>
+        <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:0.2rem 0.5rem;font-family:monospace"
+                onclick="setComando('fw01','nft list ruleset')">nft ruleset</button>
+        <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:0.2rem 0.5rem;font-family:monospace"
+                onclick="setComando('syslog01','tail -n 10 /var/log/laboratorio/all.log')">all.log</button>
+        <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:0.2rem 0.5rem;font-family:monospace"
+                onclick="setComando('mysql01','mysql -uroot -pRoot_TFG_2026! NetCorp -e \"SELECT nombre,email FROM empleados LIMIT 5;\" 2>/dev/null')">SQL empleados</button>
+    </div>
+
+    <form hx-post="/api/terminal"
+          hx-target="#terminal-output"
+          hx-swap="beforeend"
+          hx-indicator="#terminal-indicator"
+          style="display:flex;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
+        <select name="contenedor" id="terminal-contenedor"
+                style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);font-family:monospace">
+            <option value="client01">client01</option>
+            <option value="ssh01">ssh01</option>
+            <option value="dns01">dns01</option>
+            <option value="dhcp01">dhcp01</option>
+            <option value="web01">web01</option>
+            <option value="proxy01">proxy01</option>
+            <option value="squid01">squid01</option>
+            <option value="syslog01">syslog01</option>
+            <option value="mysql01">mysql01</option>
+            <option value="fw01">fw01</option>
+        </select>
+        <input type="text" name="comando" id="terminal-input"
+               placeholder="ping -c4 dns01  |  nslookup intranet.netcorp.local  |  ip route  ..."
+               style="flex:1;padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);font-family:monospace"
+               autocomplete="off">
+        <button type="submit" class="btn btn-primary">▶ Ejecutar</button>
+        <span id="terminal-indicator" class="htmx-indicator"
+              style="color:var(--text-secondary);font-size:0.8rem">⏳</span>
+    </form>
+    <div id="terminal-output"
+         style="background:#0d1117;border-radius:8px;padding:1rem;min-height:200px;max-height:500px;overflow-y:auto;font-family:monospace;font-size:0.85rem;color:#e6edf3">
+        <div style="color:#58a6ff">NetCorp Lab Terminal — selecciona contenedor, escribe un comando y pulsa Ejecutar</div>
+        <div style="color:#666;font-size:0.8rem">Nota: ping sin -c se limita automáticamente a 4 paquetes</div>
+        <hr style="border-color:#30363d;margin:0.5rem 0">
+    </div>
+</section>
+
+<script>
+function limpiarTerminal() {
+    document.getElementById('terminal-output').innerHTML =
+        '<div style="color:#58a6ff">NetCorp Lab Terminal — selecciona contenedor, escribe un comando y pulsa Ejecutar</div>' +
+        '<div style="color:#666;font-size:0.8rem">Nota: ping sin -c se limita automáticamente a 4 paquetes</div>' +
+        '<hr style="border-color:#30363d;margin:0.5rem 0">';
+}
+
+function setComando(contenedor, cmd) {
+    document.getElementById('terminal-contenedor').value = contenedor;
+    document.getElementById('terminal-input').value = cmd;
+    document.getElementById('terminal-input').focus();
+}
+// Auto-scroll al fondo cuando llegan nuevos resultados
+document.addEventListener('htmx:afterSwap', function(e) {
+    if (e.target.id === 'terminal-output') {
+        e.target.scrollTop = e.target.scrollHeight;
+    }
+});
+</script>
 
 <!-- ═══ TOPOLOGÍA ════════════════════════════════════════════════════════ -->
 <section class="card" id="topologia">
@@ -233,5 +361,46 @@
 function cargarLogs(servicio) {
     htmx.ajax('GET', '/api/logs/' + servicio, {target: '#contenedor-logs', swap: 'innerHTML'});
 }
+
+// Guarda el HTML original del formulario de alta al cargar la página
+var _altaFormHTML = '';
+document.addEventListener('DOMContentLoaded', function() {
+    _altaFormHTML = document.getElementById('form-empleado').innerHTML;
+});
+
+function mostrarFormAlta() {
+    var el = document.getElementById('form-empleado');
+    if (el.style.display === 'block' && el.dataset.mode !== 'edit') {
+        el.style.display = 'none';
+    } else {
+        // Restaurar el formulario de alta (por si antes había un formulario de edición)
+        el.innerHTML = _altaFormHTML;
+        el.dataset.mode = 'alta';
+        htmx.process(el);
+        el.style.display = 'block';
+        el.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    }
+}
+
+document.addEventListener('htmx:afterSwap', function(e) {
+    // Auto-scroll terminal
+    if (e.target.id === 'terminal-output') {
+        e.target.scrollTop = e.target.scrollHeight;
+    }
+    // Mostrar #form-empleado cuando el botón Editar carga el formulario dentro
+    if (e.target.id === 'form-empleado') {
+        e.target.dataset.mode = 'edit';
+        e.target.style.display = 'block';
+        e.target.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        htmx.process(e.target);
+    }
+    // Ocultar formulario tras guardar (cuando se actualiza la tabla de empleados)
+    if (e.target.id === 'netcorp-content') {
+        var form = document.getElementById('form-empleado');
+        if (form) form.style.display = 'none';
+        // Reprocesar HTMX en el nuevo contenido dinamico
+        htmx.process(e.target);
+    }
+});
 </script>
 {% endblock %}

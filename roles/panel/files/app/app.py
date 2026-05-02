@@ -14,9 +14,9 @@ app = Flask(__name__)
 # ─── CONFIGURACIÓN ───────────────────────────────────────────────────────────
 MYSQL_CONFIG = {
     'host': '172.23.0.10',
-    'user': 'rsyslog',
-    'password': 'Rsyslog_TFG_2026!',
-    'database': 'Syslog',
+    'user': 'netcorp',
+    'password': 'NetCorp_TFG_2026!',
+    'database': 'NetCorp',
     'connection_timeout': 5
 }
 
@@ -137,23 +137,23 @@ def api_dhcp_leases():
 def api_mysql(consulta):
     consultas = {
         'total_por_host': {
-            'titulo': 'Total de logs por host',
-            'sql': 'SELECT FromHost, COUNT(*) as Total FROM SystemEvents GROUP BY FromHost ORDER BY Total DESC',
-            'columnas': ['Host', 'Total']
+            'titulo': 'Accesos por IP origen',
+            'sql': 'SELECT ip_origen, COUNT(*) as Total FROM accesos GROUP BY ip_origen ORDER BY Total DESC',
+            'columnas': ['IP Origen', 'Total']
         },
         'ultimos_eventos': {
-            'titulo': 'Últimos 20 eventos',
-            'sql': 'SELECT ReceivedAt, FromHost, SysLogTag, LEFT(Message,80) as Mensaje FROM SystemEvents ORDER BY ID DESC LIMIT 20',
-            'columnas': ['Fecha', 'Host', 'Servicio', 'Mensaje']
+            'titulo': 'Ultimos 20 accesos',
+            'sql': 'SELECT CAST(timestamp AS CHAR), ip_origen, servicio, accion FROM accesos ORDER BY id DESC LIMIT 20',
+            'columnas': ['Fecha', 'IP Origen', 'Servicio', 'Accion']
         },
         'por_severidad': {
-            'titulo': 'Logs por severidad',
-            'sql': 'SELECT CASE Priority WHEN 0 THEN "Emergency" WHEN 1 THEN "Alert" WHEN 2 THEN "Critical" WHEN 3 THEN "Error" WHEN 4 THEN "Warning" WHEN 5 THEN "Notice" WHEN 6 THEN "Info" WHEN 7 THEN "Debug" ELSE "Desconocido" END as Severidad, COUNT(*) as Total FROM SystemEvents GROUP BY Priority ORDER BY Priority',
-            'columnas': ['Severidad', 'Total']
+            'titulo': 'Empleados por departamento',
+            'sql': 'SELECT d.nombre, COUNT(*) as Total FROM empleados e JOIN departamentos d ON e.departamento_id=d.id GROUP BY d.nombre ORDER BY Total DESC',
+            'columnas': ['Departamento', 'Total']
         },
         'ultimas_24h': {
-            'titulo': 'Actividad últimas 24 horas',
-            'sql': 'SELECT DATE_FORMAT(ReceivedAt, "%H:00") as Hora, COUNT(*) as Total FROM SystemEvents WHERE ReceivedAt >= NOW() - INTERVAL 24 HOUR GROUP BY Hora ORDER BY Hora',
+            'titulo': 'Accesos ultimas 24 horas',
+            'sql': 'SELECT DATE_FORMAT(timestamp, "%H:00") as Hora, COUNT(*) as Total FROM accesos WHERE timestamp >= NOW() - INTERVAL 24 HOUR GROUP BY Hora ORDER BY Hora',
             'columnas': ['Hora', 'Total']
         }
     }
@@ -253,7 +253,7 @@ def api_firewall():
     # Pruebas de tráfico BLOQUEADO
     pruebas_bloqueadas = [
         ('proxy01', '192.168.100.10', 22, 'DMZ → LAN ssh01 (🚫 debe estar bloqueado)'),
-        ('web01',   '192.168.100.10', 22, 'DMZ → LAN ssh01 desde web01 (🚫 bloqueado)'),
+        ('proxy01', '192.168.100.10', 22, 'DMZ → LAN ssh01 desde proxy01 (🚫 bloqueado)'),
         ('proxy01', '192.168.100.20', 53, 'DMZ → LAN dns01 (🚫 debe estar bloqueado)'),
         ('client01','172.21.0.20', 443,   'LAN → web01 directo HTTPS (🚫 bloqueado)'),
         ('client01','172.21.0.20', 80,    'LAN → web01 directo HTTP (🚫 bloqueado)'),
@@ -390,31 +390,56 @@ def demo_scp():
 
 @app.route('/api/demo/navegacion', methods=['POST'])
 def demo_navegacion():
-    """Escenario 3: Navegación web via Squid"""
+    """Escenario 3: Flujo completo NetCorp — cliente accede a la intranet corporativa"""
+    import time
     pasos = []
     ok_total = True
 
-    # Paso 1: Verificar Squid
-    out, rc = docker_exec('client01',
-        'timeout 3 bash -c "cat < /dev/null > /dev/tcp/192.168.100.40/3128" && echo OK')
-    pasos.append({'descripcion': 'Conectividad a squid01 (192.168.100.40:3128)', 'ok': rc==0, 'output': ''})
-
-    # Paso 2: Navegar via Squid
-    out, rc = docker_exec('client01',
-        'curl -s -x http://192.168.100.40:3128 --max-time 10 http://example.com | head -20')
-    ok = rc == 0 and 'html' in out.lower()
-    pasos.append({'descripcion': 'Descarga de http://example.com via squid01', 'ok': ok, 'output': out[:300] if out else 'Sin respuesta'})
+    # Paso 1: Solicitar IP via DHCP
+    out, rc = docker_exec('client01', 'udhcpc -i eth0 -q 2>&1 | tail -3')
+    ip_out, _ = docker_exec('client01', "ip addr show eth0 | grep 'inet ' | awk '{print $2}'")
+    ok = bool(ip_out)
+    pasos.append({'descripcion': f'IP obtenida via DHCP desde dhcp01', 'ok': ok, 'output': f'IP asignada: {ip_out}'})
     if not ok:
         ok_total = False
 
-    # Paso 3: Ver log de squid
-    import time; time.sleep(2)
-    log_out, _ = docker_exec('syslog01', 'grep -v rsyslogd /var/log/laboratorio/squid.log | tail -3')
-    pasos.append({'descripcion': 'Acceso registrado en squid.log', 'ok': bool(log_out), 'output': log_out})
+    # Paso 2: Resolver intranet.netcorp.local via DNS
+    out, rc = docker_exec('client01', 'nslookup intranet.netcorp.local 192.168.100.20 | grep Address | tail -1')
+    ok = rc == 0 and '172.21.0.10' in out
+    pasos.append({'descripcion': 'DNS resuelve intranet.netcorp.local → 172.21.0.10 (proxy01)', 'ok': ok, 'output': out})
+    if not ok:
+        ok_total = False
+
+    # Paso 3: Acceder a la intranet via Squid (client01 → squid01:3128 → proxy01:443 → web01)
+    out, rc = docker_exec('client01',
+        'curl -sk --max-time 15 --proxy http://192.168.100.40:3128 https://intranet.netcorp.local/api/health')
+    ok = rc == 0 and 'ok' in out.lower()
+    pasos.append({'descripcion': 'client01 → squid01:3128 → proxy01:443 → web01 (/api/health)', 'ok': ok, 'output': out})
+    if not ok:
+        ok_total = False
+
+    # Paso 4: Consultar empleados via squid (registra acceso en MySQL)
+    out, rc = docker_exec('client01',
+        'curl -sk --max-time 15 --proxy http://192.168.100.40:3128 https://intranet.netcorp.local/api/empleados')
+    ok = rc == 0 and 'empleados' in out.lower()
+    pasos.append({'descripcion': 'API /api/empleados devuelve directorio NetCorp (via squid)', 'ok': ok, 'output': out[:200] if out else 'Sin respuesta'})
+    if not ok:
+        ok_total = False
+
+    # Paso 5: Verificar acceso registrado en MySQL
+    time.sleep(2)
+    out, rc = docker_exec('mysql01', 'mysql -unetcorp -pNetCorp_TFG_2026! NetCorp -e "SELECT ip_origen, servicio, accion, timestamp FROM accesos ORDER BY id DESC LIMIT 1;" 2>/dev/null')
+    ok = rc == 0 and bool(out)
+    pasos.append({'descripcion': 'Acceso registrado en BD NetCorp (MySQL)', 'ok': ok, 'output': out})
+
+    # Paso 6: Ver log en syslog01
+    time.sleep(1)
+    log_out, _ = docker_exec('syslog01', 'grep -v rsyslogd /var/log/laboratorio/all.log | grep -E "squid01|proxy01" | tail -3')
+    pasos.append({'descripcion': 'Trafico registrado en syslog01 (all.log)', 'ok': bool(log_out), 'output': log_out})
 
     return render_template('partials/demo_resultado.html',
                            ok=ok_total,
-                           titulo='Navegación web via proxy Squid',
+                           titulo='Flujo completo NetCorp: DHCP → DNS → Squid → Proxy → Web → MySQL',
                            pasos=pasos,
                            log_generado=True,
                            timestamp=datetime.now().strftime('%H:%M:%S'))
@@ -516,7 +541,7 @@ def demo_proxy():
 
     # Paso 4: Ver log proxy
     import time; time.sleep(2)
-    log_out, _ = docker_exec('syslog01', 'grep -v rsyslogd /var/log/laboratorio/proxy.log | tail -3')
+    log_out, _ = docker_exec('syslog01', 'grep -v rsyslogd /var/log/laboratorio/all.log | grep proxy01 | tail -3')
     pasos.append({'descripcion': 'Acceso registrado en proxy.log', 'ok': bool(log_out), 'output': log_out})
 
     return render_template('partials/demo_resultado.html',
@@ -536,41 +561,338 @@ def demo_mysql():
         conn = get_mysql_connection()
         cursor = conn.cursor()
 
-        # Total de registros
-        cursor.execute('SELECT COUNT(*) FROM SystemEvents')
+        # Total de empleados
+        cursor.execute('SELECT COUNT(*) FROM empleados WHERE activo=1')
         total = cursor.fetchone()[0]
-        pasos.append({'descripcion': 'Total de eventos en SystemEvents', 'ok': True,
-                      'output': f'{total} registros'})
+        pasos.append({'descripcion': 'Total empleados activos en NetCorp', 'ok': True,
+                      'output': f'{total} empleados'})
 
-        # Últimos 5 eventos
-        cursor.execute('''
-            SELECT ReceivedAt, FromHost, SysLogTag, LEFT(Message, 60)
-            FROM SystemEvents ORDER BY ID DESC LIMIT 5
-        ''')
+        # Ultimos 5 accesos
+        cursor.execute(
+            'SELECT CAST(timestamp AS CHAR), ip_origen, servicio, accion '
+            'FROM accesos ORDER BY id DESC LIMIT 5'
+        )
         rows = cursor.fetchall()
         output = '\n'.join([f'{r[0]} | {r[1]} | {r[2]} | {r[3]}' for r in rows])
-        pasos.append({'descripcion': 'Últimos 5 eventos registrados', 'ok': bool(rows),
+        pasos.append({'descripcion': 'Ultimos 5 accesos registrados', 'ok': bool(rows),
                       'output': output})
 
-        # Hosts que han enviado logs
-        cursor.execute('SELECT FromHost, COUNT(*) as n FROM SystemEvents GROUP BY FromHost ORDER BY n DESC')
-        hosts = cursor.fetchall()
-        output = '\n'.join([f'{h[0]}: {h[1]} eventos' for h in hosts])
-        pasos.append({'descripcion': 'Eventos por host origen', 'ok': bool(hosts), 'output': output})
+        # Empleados por departamento
+        cursor.execute(
+            'SELECT d.nombre, COUNT(*) as n FROM empleados e '
+            'JOIN departamentos d ON e.departamento_id=d.id GROUP BY d.nombre ORDER BY n DESC'
+        )
+        deps = cursor.fetchall()
+        output = '\n'.join([f'{d[0]}: {d[1]} empleados' for d in deps])
+        pasos.append({'descripcion': 'Empleados por departamento', 'ok': bool(deps), 'output': output})
 
         cursor.close()
         conn.close()
 
     except Exception as e:
         ok_total = False
-        pasos.append({'descripcion': 'Conexión a MySQL', 'ok': False, 'output': str(e)})
+        pasos.append({'descripcion': 'Conexion a MySQL NetCorp', 'ok': False, 'output': str(e)})
 
     return render_template('partials/demo_resultado.html',
                            ok=ok_total,
-                           titulo='Consulta MySQL — SystemEvents en tiempo real',
+                           titulo='Base de datos NetCorp en tiempo real',
                            pasos=pasos,
                            log_generado=False,
                            timestamp=datetime.now().strftime('%H:%M:%S'))
+
+
+# ─── NETCORP HTML PARA HTMX ───────────────────────────────────────────────────
+@app.route('/api/netcorp/stats')
+def netcorp_stats_html():
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT COUNT(*) as n FROM empleados WHERE activo=1")
+        emp = cur.fetchone()["n"]
+        cur.execute("SELECT COUNT(*) as n FROM accesos")
+        acc = cur.fetchone()["n"]
+        cur.execute("SELECT COUNT(*) as n FROM departamentos")
+        dep = cur.fetchone()["n"]
+        cur.close(); conn.close()
+        html = f"""
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;padding:1rem 0">
+            <div style="text-align:center;background:var(--bg-secondary);padding:1rem;border-radius:8px">
+                <div style="font-size:2rem;font-weight:bold;color:var(--accent)">{emp}</div>
+                <div style="color:var(--text-secondary)">Empleados activos</div>
+            </div>
+            <div style="text-align:center;background:var(--bg-secondary);padding:1rem;border-radius:8px">
+                <div style="font-size:2rem;font-weight:bold;color:var(--accent)">{dep}</div>
+                <div style="color:var(--text-secondary)">Departamentos</div>
+            </div>
+            <div style="text-align:center;background:var(--bg-secondary);padding:1rem;border-radius:8px">
+                <div style="font-size:2rem;font-weight:bold;color:var(--accent)">{acc}</div>
+                <div style="color:var(--text-secondary)">Accesos registrados</div>
+            </div>
+        </div>"""
+        return html
+    except Exception as ex:
+        return f'<p style="color:red">Error: {ex}</p>'
+
+@app.route("/api/netcorp/empleados")
+def netcorp_empleados_html():
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            "SELECT e.id, e.nombre, e.apellidos, e.email, e.puesto, "
+            "d.nombre as departamento, e.activo "
+            "FROM empleados e JOIN departamentos d ON e.departamento_id=d.id "
+            "ORDER BY d.nombre, e.apellidos"
+        )
+        empleados = cur.fetchall()
+        cur.close(); conn.close()
+        rows = []
+        for e in empleados:
+            estado_color = "#4caf50" if e["activo"] else "#f44336"
+            estado_txt = "Activo" if e["activo"] else "Inactivo"
+            opacity = "1" if e["activo"] else "0.5"
+            eid = e["id"]
+            if e["activo"]:
+                btn_accion = (
+                    f'<button hx-post="/api/netcorp/empleados/{eid}/baja" ' +
+                    f'hx-target="#netcorp-content" hx-swap="innerHTML" ' +
+                    f'hx-confirm="Dar de baja a {e["nombre"]}?" ' +
+                    'style="background:#f44336;color:white;border:none;padding:0.2rem 0.4rem;border-radius:3px;cursor:pointer">🚫 Baja</button>'
+                )
+            else:
+                btn_accion = (
+                    f'<button hx-post="/api/netcorp/empleados/{eid}/activar" ' +
+                    f'hx-target="#netcorp-content" hx-swap="innerHTML" ' +
+                    'style="background:#4caf50;color:white;border:none;padding:0.2rem 0.4rem;border-radius:3px;cursor:pointer">✅ Activar</button>'
+                )
+            btn_editar = (
+                f'<button hx-get="/api/netcorp/empleados/{eid}" ' +
+                f'hx-target="#form-empleado" hx-swap="innerHTML" ' +
+                'style="background:#2196f3;color:white;border:none;padding:0.2rem 0.4rem;border-radius:3px;cursor:pointer;margin-right:0.25rem">✏️ Editar</button>'
+            )
+            rows.append(
+                f'<tr style="opacity:{opacity}">' +
+                f'<td style="padding:0.4rem">{e["id"]}</td>' +
+                f'<td style="padding:0.4rem">{e["nombre"]} {e["apellidos"]}</td>' +
+                f'<td style="padding:0.4rem">{e["email"]}</td>' +
+                f'<td style="padding:0.4rem">{e["departamento"]}</td>' +
+                f'<td style="padding:0.4rem">{e["puesto"]}</td>' +
+                f'<td style="padding:0.4rem"><span style="color:{estado_color}">{estado_txt}</span></td>' +
+                f'<td style="padding:0.4rem;white-space:nowrap">{btn_editar}{btn_accion}</td>' +
+                '</tr>'
+            )
+        rows_html = "".join(rows)
+        return (
+            f'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.85rem">' +
+            '<thead><tr style="background:var(--bg-secondary)">' +
+            '<th style="padding:0.4rem;text-align:left">ID</th>' +
+            '<th style="padding:0.4rem;text-align:left">Nombre</th>' +
+            '<th style="padding:0.4rem;text-align:left">Email</th>' +
+            '<th style="padding:0.4rem;text-align:left">Departamento</th>' +
+            '<th style="padding:0.4rem;text-align:left">Puesto</th>' +
+            '<th style="padding:0.4rem;text-align:left">Estado</th>' +
+            '<th style="padding:0.4rem;text-align:left">Acciones</th>' +
+            f'</tr></thead><tbody>{rows_html}</tbody></table></div>' +
+            f'<p style="color:var(--text-secondary);margin-top:0.5rem;font-size:0.8rem">' +
+            f'{len(empleados)} empleados — actualizado {datetime.now().strftime("%H:%M:%S")}</p>'
+        )
+    except Exception as ex:
+        return f'<p style="color:red">Error: {ex}</p>'
+
+
+@app.route("/api/netcorp/accesos")
+def netcorp_accesos_html():
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            "SELECT id, ip_origen, servicio, accion, "
+            "CAST(timestamp AS CHAR) as timestamp, resultado "
+            "FROM accesos ORDER BY timestamp DESC LIMIT 50"
+        )
+        accesos = cur.fetchall()
+        cur.close(); conn.close()
+        rows = "".join([
+            f"<tr><td>{a['id']}</td><td>{a['ip_origen']}</td>"
+            f"<td>{a['servicio']}</td><td>{a['accion']}</td>"
+            f"<td>{a['timestamp']}</td>"
+            f"<td><span style=\"color:{'green' if a['resultado']=='OK' else 'red'}\">"
+            f"{a['resultado']}</span></td></tr>"
+            for a in accesos
+        ])
+        return f"""<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:var(--bg-secondary)">
+                <th style="padding:0.5rem;text-align:left">ID</th>
+                <th style="padding:0.5rem;text-align:left">IP Origen</th>
+                <th style="padding:0.5rem;text-align:left">Servicio</th>
+                <th style="padding:0.5rem;text-align:left">Accion</th>
+                <th style="padding:0.5rem;text-align:left">Timestamp</th>
+                <th style="padding:0.5rem;text-align:left">Resultado</th>
+            </tr></thead><tbody>{rows}</tbody></table></div>
+            <p style="color:var(--text-secondary);margin-top:0.5rem;font-size:0.8rem">
+            {len(accesos)} accesos — actualizado {datetime.now().strftime("%H:%M:%S")}</p>"""
+    except Exception as ex:
+        return f'<p style="color:red">Error: {ex}</p>'
+
+@app.route("/api/netcorp/empleados/nuevo", methods=["POST"])
+def netcorp_empleado_nuevo_html():
+    from flask import request as req
+    data = req.form
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO empleados(nombre,apellidos,email,usuario,departamento_id,puesto) "
+            "VALUES(%s,%s,%s,%s,%s,%s)",
+            (data["nombre"], data["apellidos"], data["email"],
+             data["usuario"], data["departamento_id"], data["puesto"])
+        )
+        conn.commit()
+        cur.close(); conn.close()
+        # Devolver lista actualizada
+        return netcorp_empleados_html()
+    except Exception as ex:
+        return f'<p style="color:red">Error al dar de alta: {ex}</p>'
+
+
+# ─── TERMINAL INTERACTIVA ────────────────────────────────────────────────────
+import re as _re
+
+def _sanitizar_comando(cmd):
+    """Ajusta comandos que bloquearían la terminal indefinidamente."""
+    cmd = cmd.strip()
+    # ping sin -c: añadir -c 4
+    if _re.match(r'^ping(\s+)', cmd) and '-c' not in cmd:
+        cmd = _re.sub(r'^ping(\s+)', r'ping -c 4 \1', cmd, count=1).replace('-c 4  ', '-c 4 ')
+    # tail sin -n ni --lines: limitar a 20 líneas
+    if _re.match(r'^tail(\s+)', cmd) and '-n' not in cmd and '--lines' not in cmd and '-f' not in cmd and '-F' not in cmd:
+        cmd = _re.sub(r'^tail(\s+)', r'tail -n 20 \1', cmd, count=1)
+    return cmd
+
+@app.route('/api/terminal', methods=['POST'])
+def api_terminal():
+    from flask import request as req
+    contenedor = req.form.get('contenedor', 'client01')
+    comando_original = req.form.get('comando', 'echo hola').strip()
+
+    contenedores_permitidos = [
+        'fw01', 'ssh01', 'dns01', 'dhcp01', 'web01', 'proxy01',
+        'squid01', 'client01', 'syslog01', 'mysql01', 'panel01'
+    ]
+    if contenedor not in contenedores_permitidos:
+        return '<pre style="color:red">Contenedor no permitido</pre>'
+    if not comando_original:
+        return ''
+
+    comando = _sanitizar_comando(comando_original)
+    aviso = ''
+    if comando != comando_original:
+        aviso = f'<div style="color:#f0ad4e;font-family:monospace;font-size:0.8rem;margin-bottom:0.25rem">⚠ Ajustado: {comando}</div>'
+
+    out, rc = docker_exec(contenedor, comando)
+    color = 'var(--text-primary)' if rc == 0 else '#ff6b6b'
+    timestamp = datetime.now().strftime('%H:%M:%S')
+
+    import html as _html
+    out_escaped = _html.escape(out) if out else '<span style="color:#666">(sin output)</span>'
+
+    return f"""
+    <div style="margin-bottom:0.25rem">
+        <span style="color:var(--accent);font-family:monospace">{timestamp} [{contenedor}]$</span>
+        <span style="color:#aaa;font-family:monospace"> {_html.escape(comando_original)}</span>
+    </div>
+    {aviso}<pre style="color:{color};background:transparent;margin:0 0 0.25rem 0;white-space:pre-wrap;font-family:monospace;font-size:0.85rem">{out_escaped}</pre>
+    <hr style="border-color:var(--border);margin:0.5rem 0">
+    """
+
+
+# ─── NETCORP CRUD EMPLEADOS ───────────────────────────────────────────────────
+@app.route("/api/netcorp/empleados/<int:emp_id>/baja", methods=["POST"])
+def netcorp_empleado_baja(emp_id):
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE empleados SET activo=0 WHERE id=%s", (emp_id,))
+        conn.commit()
+        cur.close(); conn.close()
+        return netcorp_empleados_html()
+    except Exception as ex:
+        return f'<p style="color:red">Error: {ex}</p>'
+
+@app.route("/api/netcorp/empleados/<int:emp_id>/activar", methods=["POST"])
+def netcorp_empleado_activar(emp_id):
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE empleados SET activo=1 WHERE id=%s", (emp_id,))
+        conn.commit()
+        cur.close(); conn.close()
+        return netcorp_empleados_html()
+    except Exception as ex:
+        return f'<p style="color:red">Error: {ex}</p>'
+
+@app.route("/api/netcorp/empleados/<int:emp_id>", methods=["GET"])
+def netcorp_empleado_get(emp_id):
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM empleados WHERE id=%s", (emp_id,))
+        emp = cur.fetchone()
+        cur.close(); conn.close()
+        if not emp:
+            return '<p style="color:red">Empleado no encontrado</p>'
+        deps = [
+            (1,"IT"),(2,"Comercial"),(3,"RRHH"),(4,"Administracion")
+        ]
+        opts = "".join([
+            f'<option value="{d[0]}" {"selected" if d[0]==emp["departamento_id"] else ""}>{d[1]}</option>'
+            for d in deps
+        ])
+        return f"""
+        <div style="background:var(--bg-secondary);padding:1rem;border-radius:8px;margin-bottom:1rem">
+            <h3 style="margin-bottom:1rem">Editar empleado #{emp_id}</h3>
+            <form hx-post="/api/netcorp/empleados/{emp_id}/editar"
+                  hx-target="#netcorp-content"
+                  hx-swap="innerHTML"
+                  style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                <input type="text" name="nombre" value="{emp["nombre"]}" placeholder="Nombre" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <input type="text" name="apellidos" value="{emp["apellidos"]}" placeholder="Apellidos" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <input type="email" name="email" value="{emp["email"]}" placeholder="Email" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <input type="text" name="usuario" value="{emp["usuario"]}" placeholder="Usuario" required
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <input type="text" name="puesto" value="{emp["puesto"] or ""}" placeholder="Puesto"
+                       style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <select name="departamento_id"
+                        style="padding:0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                    {opts}
+                </select>
+                <button type="submit" class="btn btn-primary" style="grid-column:span 2">💾 Guardar cambios</button>
+            </form>
+        </div>
+        """
+    except Exception as ex:
+        return f'<p style="color:red">Error: {ex}</p>'
+
+@app.route("/api/netcorp/empleados/<int:emp_id>/editar", methods=["POST"])
+def netcorp_empleado_editar(emp_id):
+    from flask import request as req
+    data = req.form
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE empleados SET nombre=%s, apellidos=%s, email=%s, usuario=%s, puesto=%s, departamento_id=%s WHERE id=%s",
+            (data["nombre"], data["apellidos"], data["email"],
+             data["usuario"], data["puesto"], data["departamento_id"], emp_id)
+        )
+        conn.commit()
+        cur.close(); conn.close()
+        return netcorp_empleados_html()
+    except Exception as ex:
+        return f'<p style="color:red">Error al editar: {ex}</p>'
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

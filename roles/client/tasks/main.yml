@@ -1,8 +1,4 @@
 ---
-# Rol: client
-# Descripción: Despliega client01 como cliente de pruebas en la LAN
-
-# ─── CONSTRUCCIÓN DE IMAGEN ──────────────────────────────────────────────────
 - name: "Construir imagen Docker del cliente de pruebas"
   community.docker.docker_image:
     name: "tfg/client"
@@ -13,30 +9,25 @@
     source: build
     force_source: false
 
-# ─── DESPLIEGUE DEL CONTENEDOR ───────────────────────────────────────────────
-- name: "Desplegar contenedor client01 con IP fija"
+- name: "Desplegar contenedor client01 sin IP fija"
   community.docker.docker_container:
     name: "{{ contenedores.client.nombre }}"
     image: "tfg/client:latest"
     state: started
     restart_policy: unless-stopped
+    env:
+      TZ: "Europe/Madrid"
     capabilities:
       - NET_ADMIN
+    dns_servers:
+      - "192.168.100.20"
+    dns_search_domains:
+      - "netcorp.local"
+      - "laboratorio.local"
     networks:
       - name: "{{ redes.lan.nombre }}"
-        ipv4_address: "{{ contenedores.client.ip }}"
 
-# ─── CONFIGURACIÓN DE RED ────────────────────────────────────────────────────
-- name: "Configurar gateway de client01 hacia fw01"
-  ansible.builtin.command: >
-    docker exec {{ contenedores.client.nombre }}
-    ip route replace default via {{ contenedores.firewall.ip_lan }}
-  changed_when: true
-  register: ruta_gw
-  failed_when: ruta_gw.rc != 0 and 'exists' not in ruta_gw.stderr
-
-# ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
-- name: "Verificar que el contenedor client01 está activo"
+- name: "Verificar que el contenedor client01 esta activo"
   ansible.builtin.command: >
     docker ps --filter name={{ contenedores.client.nombre }}
   register: estado_client
@@ -45,3 +36,12 @@
 - name: "Mostrar estado del contenedor client01"
   ansible.builtin.debug:
     msg: "{{ estado_client.stdout_lines }}"
+- name: "Configurar proxy persistente en client01"
+  ansible.builtin.shell: >
+    docker exec {{ contenedores.client.nombre }} bash -c
+    "echo 'http_proxy=http://192.168.100.40:3128' > /etc/environment &&
+    echo 'https_proxy=http://192.168.100.40:3128' >> /etc/environment &&
+    echo 'HTTP_PROXY=http://192.168.100.40:3128' >> /etc/environment &&
+    echo 'HTTPS_PROXY=http://192.168.100.40:3128' >> /etc/environment &&
+    echo 'no_proxy=localhost,127.0.0.1' >> /etc/environment"
+  changed_when: true

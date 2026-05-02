@@ -20,6 +20,8 @@
     image: "tfg/dhcp:latest"
     state: started
     restart_policy: unless-stopped
+    env:
+      TZ: "Europe/Madrid"
     networks:
       - name: "{{ redes.lan.nombre }}"
         ipv4_address: "{{ contenedores.dhcp.ip }}"

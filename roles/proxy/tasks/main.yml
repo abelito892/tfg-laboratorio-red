@@ -20,6 +20,8 @@
     image: "tfg/proxy:latest"
     state: started
     restart_policy: unless-stopped
+    env:
+      TZ: "Europe/Madrid"
     capabilities:
       - NET_ADMIN
     networks:
@@ -118,3 +120,7 @@
     {{ contenedores.proxy.nombre }}:/var/www/proxy01/index.html
   changed_when: true
   notify: "Recargar Proxy"
+- name: "Reenviar logs de proxy01 a syslog01 en tiempo real"
+  ansible.builtin.shell: |
+    docker exec -d {{ contenedores.proxy.nombre }} bash -c       "pgrep -f 'tail.*/var/log/nginx/proxy01_access.log' || tail -F /var/log/nginx/proxy01_access.log | while read line; do logger -n 172.22.0.10 -P 514 --udp 'proxy01: $line'; done &"
+  changed_when: true

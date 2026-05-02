@@ -1,0 +1,16 @@
+$TTL 86400
+@   IN  SOA dns01.netcorp.local. admin.netcorp.local. (
+            2026042901  ; Serial
+            3600        ; Refresh
+            1800        ; Retry
+            604800      ; Expire
+            86400 )     ; Minimum TTL
+
+@           IN  NS      dns01.netcorp.local.
+dns01       IN  A       192.168.100.20
+
+; Servicios corporativos - todos pasan por proxy01
+intranet    IN  A       172.21.0.10
+www         IN  A       172.21.0.10
+mail        IN  A       172.21.0.10
+proxy01     IN  A       172.21.0.10

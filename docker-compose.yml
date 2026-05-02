@@ -1,0 +1,29 @@
+x-ansible-base: &ansible-base
+  build:
+    context: .
+    dockerfile: ansible-controller/Dockerfile
+  image: netcorp-ansible-controller
+  volumes:
+    - .:/project
+    - /var/run/docker.sock:/var/run/docker.sock
+  working_dir: /project
+  environment:
+    - ANSIBLE_FORCE_COLOR=1
+    - ANSIBLE_BECOME_ASK_PASS=false
+    - ANSIBLE_CONFIG=/project/ansible.cfg
+    - TZ=Europe/Madrid
+
+services:
+  deploy:
+    <<: *ansible-base
+    command: ansible-playbook site.yml
+
+  teardown:
+    <<: *ansible-base
+    command: ansible-playbook teardown.yml
+
+  shell:
+    <<: *ansible-base
+    entrypoint: /bin/bash
+    stdin_open: true
+    tty: true
