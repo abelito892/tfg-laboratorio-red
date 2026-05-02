@@ -5,7 +5,7 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN apt-get update && apt-get install -y \
  python3 python3-pip docker.io sudo curl git iproute2 iputils-ping \
  && rm -rf /var/lib/apt/lists/*
-RUN pip3 install ansible-core==2.16.3 netaddr requests
+RUN pip3 install ansible-core==2.16.3 netaddr requests requests
 RUN ansible-galaxy collection install community.docker
 WORKDIR /project
 RUN printf '#!/bin/bash\nexec "$@"\n' > /entrypoint.sh \

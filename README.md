@@ -33,6 +33,22 @@ No necesitas instalar Ansible — se ejecuta dentro de un contenedor.
 ### Windows (y tambien Linux)
     docker compose run --rm deploy
 
+
+### Nota: si Docker Desktop no puede descargar imágenes base
+
+En algunas redes corporativas Docker Hub puede estar bloqueado. En ese caso pre-descarga las imágenes con mirrors:
+
+    docker pull mirror.gcr.io/library/ubuntu:24.04
+    docker tag mirror.gcr.io/library/ubuntu:24.04 ubuntu:24.04
+
+    docker pull mirror.gcr.io/library/mysql:8.0
+    docker tag mirror.gcr.io/library/mysql:8.0 mysql:8.0
+
+    docker pull mirror.gcr.io/library/python:3.12-slim
+    docker tag mirror.gcr.io/library/python:3.12-slim python:3.12-slim
+
+    docker compose run --rm deploy
+
 ### Teardown
     # Linux
     ansible-playbook teardown.yml

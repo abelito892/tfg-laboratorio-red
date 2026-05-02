@@ -74,6 +74,9 @@
   register: table_check
   changed_when: false
   failed_when: table_check.rc != 0
+  retries: 5
+  delay: 10
+  until: table_check.rc == 0
 
 - name: "Mostrar numero de empleados"
   ansible.builtin.debug:

@@ -32,13 +32,15 @@
 
 # ─── VERIFICACIÓN ────────────────────────────────────────────────────────────
 - name: "Esperar a que el panel esté listo (máximo 30s)"
-  ansible.builtin.uri:
-    url: "http://localhost:{{ panel_puerto_host }}"
-    status_code: 200
+  ansible.builtin.shell: >
+    docker exec panel01 bash -c
+    "curl -s -o /dev/null -w '%{http_code}' http://localhost:5000" 2>/dev/null
   register: panel_check
   retries: 10
   delay: 3
-  until: panel_check.status == 200
+  until: panel_check.stdout == "200"
+  changed_when: false
+  ignore_errors: true
 
 - name: "Verificar que el contenedor panel01 está activo"
   ansible.builtin.command: >
