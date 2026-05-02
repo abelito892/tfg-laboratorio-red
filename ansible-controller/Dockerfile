@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install ansible-core==2.16.3 netaddr
 RUN ansible-galaxy collection install community.docker
 WORKDIR /project
-RUN printf '#!/bin/bash\nchmod 755 /project\nexec "$@"\n' > /entrypoint.sh \
+RUN printf '#!/bin/bash\nexec "$@"\n' > /entrypoint.sh \
  && chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["ansible-playbook", "site.yml"]
