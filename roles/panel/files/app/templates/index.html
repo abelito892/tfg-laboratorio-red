@@ -124,13 +124,11 @@
             <label>Servicio:</label>
             <select id="servicio-log" onchange="cargarLogs(this.value)">
                 <option value="ssh">SSH</option>
-                <option value="dns">DNS</option>
-                <option value="dhcp">DHCP</option>
+                                <option value="dhcp">DHCP</option>
                 <option value="web">Web</option>
                 <option value="proxy">Proxy</option>
                 <option value="squid">Squid</option>
-                <option value="mysql">MySQL</option>
-            </select>
+                            </select>
             <button class="btn btn-secondary" onclick="cargarLogs(document.getElementById('servicio-log').value)">
                 🔄 Actualizar
             </button>
